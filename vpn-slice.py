@@ -74,7 +74,7 @@ def dig(host, dns, domain=None, reverse=False):
 # Environment variables which may be passed by our caller (as listed in /usr/share/vpnc-scripts/vpnc-script)
 evs = ['reason', 'VPNGATEWAY', 'TUNDEV', 'CISCO_DEF_DOMAIN', 'CISCO_BANNER',
        'INTERNAL_IP4_ADDRESS', 'INTERNAL_IP4_MTU', 'INTERNAL_IP4_NETMASK', 'INTERNAL_IP4_NETMASKLEN', 'INTERNAL_IP4_NETADDR', 'INTERNAL_IP4_DNS', 'INTERNAL_IP4_NBNS',
-       'INTERNAL_IP6_ADDRESS',                     'INTERNAL_IP6_NETMASK',                                                    'INTERNAL_IP4_DNS' ]
+       'INTERNAL_IP6_ADDRESS',                     'INTERNAL_IP6_NETMASK',                                                    'INTERNAL_IP6_DNS' ]
 env = odict((k,os.environ[k]) for k in evs if k in os.environ)
 
 reason = env.get('reason')
@@ -89,6 +89,7 @@ p.add_argument('hosts', nargs='*', type=networkify, help='List of VPN-internal h
 g = p.add_argument_group('Subprocess options')
 p.add_argument('-s','--script', default='/usr/share/vpnc-scripts/vpnc-script', help='Real vpnc-script to call (default %(default)s)')
 p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect')
+p.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
 g = p.add_argument_group('Informational options')
 g.add_argument('-v','--verbose', action='store_true', help="Show what I am doing during connect and disconnect")
 g.add_argument('--banner', action='store_true', help='Pass banner message (default is to suppress it)')
@@ -97,8 +98,8 @@ g = p.add_argument_group('Routing and hostname options')
 g.add_argument('-n','--name', default=tundev, help='Name of this VPN (default is $TUNDEV)')
 g.add_argument('-d','--domain', default=domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
 g.add_argument('-N','--route-net', action='store_true', help='Add a route to the whole VPN internal network (default is to route only to specific hosts)')
-g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help='Only add fully-qualified domain names to /etc/hosts (default is both short and FQDN)')
-g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not lookup hosts and add them to /etc/hosts')
+g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not add either short or long hostnames to /etc/hosts')
+g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
 g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers and add them to /etc/hosts')
 args = p.parse_args()
 
@@ -110,7 +111,7 @@ if reason is None:
     p.error("Must be called as vpnc-script, with $reason set")
 
 if args.dump:
-    print('Called with environment variables for vpnc-script:', file=stderr)
+    print('Called by PID %d with environment variables for vpnc-script:' % os.getppid(), file=stderr)
     for var,val in env.items():
         print('  %s=%s' % (var, repr(val)), file=stderr)
 
@@ -150,12 +151,13 @@ else:
     # wait for real script to finish:
     sp.check_call([args.script], env=env)
 
-    # ... then continue running in a new child process, so the VPN can actually
-    # start in the background
-    if os.fork(): raise SystemExit
+    # we continue running in a new child process, so the VPN can actually
+    # start in the background, because we need to actually send traffic to it
+    if args.fork and os.fork():
+        raise SystemExit
 
-    # figure out hosts for which we need routes and/or host_map entries
-    # (DNS/NBNS servers should ALREADY have routes courtesy of vpnc-script)
+    # lookup named hosts for which we need routes and/or host_map entries
+    # (the DNS/NBNS servers already have their routes)
     ip_routes = set()
     host_map = []
 
@@ -198,4 +200,4 @@ else:
     else:
         sp.check_call(['/sbin/ip','route','flush','cache'])
         if args.verbose:
-            print("Added routes for %d VPN IP address." % len(ip_routes), file=stderr)
+            print("Added routes for %d named hosts." % len(ip_routes), file=stderr)
