@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 from sys import stderr
+import signal
 import os, fcntl, time, subprocess as sp
 import argparse
 from collections import OrderedDict as odict
@@ -102,7 +103,7 @@ elif reason=='disconnect':
     for pidfile in args.kill:
         try:
             pid = int(open(pidfile).read())
-            os.kill(pid, 15) # SIGTERM=15
+            os.kill(pid, signal.SIGTERM)
             if args.verbose:
                 print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
         except (IOError, ValueError, OSError):
