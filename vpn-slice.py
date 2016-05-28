@@ -9,6 +9,7 @@ from collections import OrderedDict as odict
 from ipaddress import ip_network, ip_address, IPv4Network, IPv6Network
 
 DIG = '/usr/bin/dig'
+IPROUTE = '/sbin/ip'
 HOSTS = '/etc/hosts'
 
 def networkify(host):
@@ -16,20 +17,6 @@ def networkify(host):
         return ip_network(host)
     except ValueError:
         return host
-
-def add_splits_to_env(split_routes, env):
-    for ii,n in enumerate(split_routes):
-        if isinstance(n, (IPv4Network, IPv6Network)):
-            net, mask = n.network_address, n.prefixlen
-        else:
-            net, mask = n
-            n = ip_network(net+'/'+mask)
-
-        v = 'IPV6_' if isinstance(n, IPv6Network) else ''
-        env['CISCO_%sSPLIT_INC_%d_ADDR'%(v,ii)] = str(net)
-        env['CISCO_%sSPLIT_INC_%d_MASK'%(v,ii)] = str(mask)
-        env['CISCO_%sSPLIT_INC_%d_MASKLEN'%(v,ii)] = str(n.prefixlen)
-        env['CISCO_%sSPLIT_INC'%v] = str( int(env.get('CISCO_%sSPLIT_INC'%v,0))+1 )
 
 def names_for(host, domain, short=True, long=True):
     if '.' in host: first, rest = host.split('.', 1)
@@ -59,6 +46,7 @@ def write_hosts(host_map, tag):
 
 def dig(host, dns, domain=None, reverse=False):
     global DIG
+    host, dns = str(host), map(str, dns)
     cl = [DIG,'+short']+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
     #print cl
     p = sp.Popen(cl, stdout=sp.PIPE)
@@ -71,6 +59,26 @@ def dig(host, dns, domain=None, reverse=False):
     else:
         return None
 
+def callip(*args):
+    global IPROUTE
+    cl = [IPROUTE]
+    for arg in args:
+        if isinstance(arg, dict):
+            for k,v in arg.items():
+                cl += [k] if v is None else [k, str(v)]
+        else:
+            cl.append(str(arg))
+
+    if args[:2]==('route','get'): get, start, keys = 'route', 1, ('via','dev','src','mtu')
+    elif args[:2]==('link','show'): get, start, keys = 'link', 3, ('mtu','state')
+    else: get = None
+
+    if get is None:
+        sp.check_call(cl)
+    else:
+        w = sp.check_output(cl).decode().split()
+        return {w[ii]:w[ii+1] for ii in range(start, len(w), 2) if w[ii] in keys}
+
 # Environment variables which may be passed by our caller (as listed in /usr/share/vpnc-scripts/vpnc-script)
 evs = ['reason', 'VPNGATEWAY', 'TUNDEV', 'CISCO_DEF_DOMAIN', 'CISCO_BANNER',
        'INTERNAL_IP4_ADDRESS', 'INTERNAL_IP4_MTU', 'INTERNAL_IP4_NETMASK', 'INTERNAL_IP4_NETMASKLEN', 'INTERNAL_IP4_NETADDR', 'INTERNAL_IP4_DNS', 'INTERNAL_IP4_NBNS',
@@ -78,16 +86,21 @@ evs = ['reason', 'VPNGATEWAY', 'TUNDEV', 'CISCO_DEF_DOMAIN', 'CISCO_BANNER',
 env = odict((k,os.environ[k]) for k in evs if k in os.environ)
 
 reason = env.get('reason')
+gateway = env.get('VPNGATEWAY')
 tundev = env.get('TUNDEV')
-dns = env.get('INTERNAL_IP4_DNS','').split()
-nbns = env.get('INTERNAL_IP4_NBNS','').split()
 domain = env.get('CISCO_DEF_DOMAIN')
+banner = env.get('CISCO_BANNER')
+myaddr = env.get('INTERNAL_IP4_ADDRESS')
+mtu = env.get('INTERNAL_IP4_MTU')
+netmask = env.get('INTERNAL_IP4_NETMASK')
+netaddr = env.get('INTERNAL_IP4_NETADDR')
+dns = [ip_address(x) for x in env.get('INTERNAL_IP4_DNS','').split()]
+nbns = [ip_address(x) for x in env.get('INTERNAL_IP4_NBNS','').split()]
 
 # Parse command-line arguments
 p = argparse.ArgumentParser()
 p.add_argument('hosts', nargs='*', type=networkify, help='List of VPN-internal hostnames or subnets to add to routing and /etc/hosts')
 g = p.add_argument_group('Subprocess options')
-p.add_argument('-s','--script', default='/usr/share/vpnc-scripts/vpnc-script', help='Real vpnc-script to call (default %(default)s)')
 p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect')
 p.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
 g = p.add_argument_group('Informational options')
@@ -97,7 +110,6 @@ g.add_argument('--dump', action='store_true', help='Dump environment variables p
 g = p.add_argument_group('Routing and hostname options')
 g.add_argument('-n','--name', default=tundev, help='Name of this VPN (default is $TUNDEV)')
 g.add_argument('-d','--domain', default=domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
-g.add_argument('-N','--route-net', action='store_true', help='Add a route to the whole VPN internal network (default is to route only to specific hosts)')
 g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not add either short or long hostnames to /etc/hosts')
 g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
 g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers and add them to /etc/hosts')
@@ -105,8 +117,6 @@ args = p.parse_args()
 
 subnets = [x for x in args.hosts if isinstance(x, (IPv4Network, IPv6Network))]
 hosts = [x for x in args.hosts if not isinstance(x, (IPv4Network, IPv6Network))]
-if not args.banner:
-    env.pop('CISCO_BANNER',None)
 if reason is None:
     p.error("Must be called as vpnc-script, with $reason set")
 
@@ -115,20 +125,11 @@ if args.dump:
     for var,val in env.items():
         print('  %s=%s' % (var, repr(val)), file=stderr)
 
-if reason=='connect':
-    # set up split routes to the DNS and Windows name servers
-    add_splits_to_env(((ip,'255.255.255.255') for ip in dns+nbns), env)
-    # ... and any other subnets specified on command line
-    add_splits_to_env(subnets, env)
-    # prevent addition of default internal network route unless explicitly specified
-    if not args.route_net:
-       env.pop('INTERNAL_IP4_NETADDR',None)
-       env.pop('INTERNAL_IP4_NETMASK',None)
-       env.pop('INTERNAL_IP4_NETMASKLEN',None)
-    # we don't want the vpnc-script to disturb our real resolv.conf
-    env.pop('INTERNAL_IP4_DNS',None)
-    env.pop('INTERNAL_IP4_NBNS',None)
-    env.pop('CISCO_DEF_DOMAIN',None)
+########################################
+
+if reason=='pre-init':
+    if not os.access('/dev/net/tun', os.R_OK|os.W_OK):
+        raise OSError("can't read and write /dev/net/tun")
 
 elif reason=='disconnect':
     for pidfile in args.kill:
@@ -144,12 +145,43 @@ elif reason=='disconnect':
     if args.verbose:
         print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
 
-# run main script
-if reason != 'connect':
-    os.execve(args.script, [args.script], env)
-else:
-    # wait for real script to finish:
-    sp.check_call([args.script], env=env)
+    # delete explicit route to gateway
+    try:
+        callip('route', 'del', gateway)
+    except sp.CalledProcessError:
+        print("WARNING: could not delete route to VPN gateway (%s)" % gateway, file=stderr)
+
+elif reason=='connect':
+    if args.banner and banner:
+        print("Connect Banner:")
+        for l in banner.splitlines(): print("| "+l)
+
+    # set explicit route to gateway
+    gwr = callip('route', 'get', gateway)
+    callip('route', 'replace', gateway, gwr)
+
+    # configure MTU
+    if mtu is None:
+        dev = gwr.get('dev')
+        mtudev = dev and callip('link', 'show', dev).get('mtu')
+        mtu = mtudev and int(mtudev) - 88
+        if mtu:
+            print("WARNING: did not get INTERNAL_IP4_MTU, guessing %d (MTU of %s - 88)" % (mtu, dev), file=stderr)
+        else:
+            mtu = 1412
+            print("WARNING: did not get INTERNAL_IP4_MTU, default guess is %d" % mtu, file=stderr)
+    callip('link', 'set', 'dev', tundev, 'up', 'mtu', mtu)
+
+    # set peer
+    callip('addr', 'add', IPv4Network(myaddr), 'peer', myaddr, 'dev', tundev)
+
+    # set up routes to the DNS and Windows name servers
+    for dest in dns+nbns+subnets:
+        callip('route', 'replace', dest, 'dev', tundev)
+    else:
+        callip('route', 'flush', 'cache')
+        if args.verbose:
+            print("Added routes for %d nameservers and %d subnets." % (len(dns)+len(nbns), len(subnets)), file=stderr)
 
     # we continue running in a new child process, so the VPN can actually
     # start in the background, because we need to actually send traffic to it
@@ -167,26 +199,26 @@ else:
         for ip in dns+nbns:
             host = dig(ip, dns, args.domain, reverse=True)
             if host is None:
-                print("WARNING: Reverse lookup for %s on VPN DNS servers (%s) failed." % (ip, ', '.join(dns)), file=stderr)
+                print("WARNING: Reverse lookup for %s on VPN DNS servers (%s) failed." % (ip, ', '.join(map(str,dns))), file=stderr)
             else:
-                host_names = names_for(host, args.domain, args.short_names)
+                names = names_for(host, args.domain, args.short_names)
                 if args.verbose:
-                    print("  %s = %s" % (ip, host_names))
-                host_map.append((ip, host_names))
+                    print("  %s = %s" % (ip, ', '.join(names)))
+                host_map.append((ip, names))
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
     for host in hosts:
         ip = dig(host, dns, args.domain)
         if ip is None:
-            print("WARNING: Lookup for %s on VPN DNS servers (%s) failed." % (host, ', '.join(dns)), file=stderr)
+            print("WARNING: Lookup for %s on VPN DNS servers (%s) failed." % (host, ', '.join(map(str,dns))), file=stderr)
         else:
             if args.verbose:
                 print("  %s = %s" % (host, ip), file=stderr)
             ip_routes.add(ip)
             if args.host_lookup:
-                host_names = names_for(host, args.domain, args.short_names)
-                host_map.append((ip, host_names))
+                names = names_for(host, args.domain, args.short_names)
+                host_map.append((ip, names))
 
     # add them to /etc/hosts
     if host_map:
@@ -196,8 +228,8 @@ else:
 
     # add routes to hosts
     for ip in ip_routes:
-        sp.check_call(['/sbin/ip','route','replace',ip+'/32','dev',tundev])
+        callip('route', 'replace', ip, 'dev', tundev)
     else:
-        sp.check_call(['/sbin/ip','route','flush','cache'])
+        callip('route', 'flush', 'cache')
         if args.verbose:
             print("Added routes for %d named hosts." % len(ip_routes), file=stderr)
