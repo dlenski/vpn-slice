@@ -8,6 +8,9 @@ import argparse
 from collections import OrderedDict as odict
 from ipaddress import ip_network, ip_address, IPv4Network, IPv6Network
 
+DIG = '/usr/bin/dig'
+HOSTS = '/etc/hosts'
+
 def networkify(host):
     try:
         return ip_network(host)
@@ -28,8 +31,35 @@ def add_splits_to_env(split_routes, env):
         env['CISCO_%sSPLIT_INC_%d_MASKLEN'%(v,ii)] = str(n.prefixlen)
         env['CISCO_%sSPLIT_INC'%v] = str( int(env.get('CISCO_%sSPLIT_INC'%v,0))+1 )
 
+def names_for(host, domain, short=True, long=True):
+    if '.' in host: first, rest = host.split('.', 1)
+    else: first, rest = host, None
+
+    names = []
+    if long:
+        if rest: names.append(host)
+        elif domain: names.append(host+'.'+domain)
+    if short:
+        if not rest: names.append(host)
+        elif rest==domain: names.append(first)
+    return names
+
+def write_hosts(host_map, tag):
+    global HOSTS
+    with open(HOSTS,'r+') as hostf:
+        fcntl.flock(hostf, fcntl.LOCK_EX) # POSIX only, obviously
+        lines = hostf.readlines()
+        keeplines = [l for l in lines if not l.endswith('# %s\n'%tag)]
+        hostf.seek(0,0)
+        hostf.writelines(keeplines)
+        for ip, names in host_map:
+            print('%s %s\t\t# %s' % (ip, ' '.join(names), tag), file=hostf)
+        hostf.truncate()
+    return len(host_map) or len(lines)-len(keeplines)
+
 def dig(host, dns, domain=None, reverse=False):
-    cl = ['/usr/bin/dig','+short']+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
+    global DIG
+    cl = [DIG,'+short']+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
     #print cl
     p = sp.Popen(cl, stdout=sp.PIPE)
     out = [l.strip() for l in p.communicate()[0].decode().splitlines()]
@@ -109,15 +139,9 @@ elif reason=='disconnect':
         except (IOError, ValueError, OSError):
             pass
 
-    with open('/etc/hosts','r+') as hostf:
-        fcntl.flock(hostf, fcntl.LOCK_EX) # POSIX only, obviously
-        lines = hostf.readlines()
-        newlines = [l for l in lines if not l.endswith('# vpn-slice-%s AUTOCREATED\n' % args.name)]
-        hostf.seek(0, 0)
-        hostf.writelines(newlines)
-        hostf.truncate()
+    removed = write_hosts({}, 'vpn-slice-%s AUTOCREATED' % args.name)
     if args.verbose:
-        print("Removed %d hosts from /etc/hosts" % (len(lines)-len(newlines)), file=stderr)
+        print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
 
 # run main script
 if reason != 'connect':
@@ -143,12 +167,7 @@ else:
             if host is None:
                 print("WARNING: Reverse lookup for %s on VPN DNS servers (%s) failed." % (ip, ', '.join(dns)), file=stderr)
             else:
-                host_names = []
-                if '.' in host:
-                    host_names.append(host)
-                else:
-                    if args.short_names: host_names.append(host)
-                    if args.domain: host_names.append(host+'.'+args.domain)
+                host_names = names_for(host, args.domain, args.short_names)
                 if args.verbose:
                     print("  %s = %s" % (ip, host_names))
                 host_map.append((ip, host_names))
@@ -164,20 +183,12 @@ else:
                 print("  %s = %s" % (host, ip), file=stderr)
             ip_routes.add(ip)
             if args.host_lookup:
-                host_names = []
-                if '.' in host:
-                    host_names.append(host)
-                else:
-                    if args.short_names: host_names.append(host)
-                    if args.domain: host_names.append(host+'.'+args.domain)
+                host_names = names_for(host, args.domain, args.short_names)
                 host_map.append((ip, host_names))
 
     # add them to /etc/hosts
     if host_map:
-        with open('/etc/hosts','a') as hostf:
-            fcntl.flock(hostf, fcntl.LOCK_EX) # POSIX only, obviously
-            for ip, hostnames in host_map:
-                hostf.write('%s %s\t\t# vpn-slice-%s AUTOCREATED\n' % (ip, ' '.join(hostnames), args.name))
+        write_hosts(host_map, 'vpn-slice-%s AUTOCREATED' % args.name)
         if args.verbose:
             print("Added %d VPN hosts to /etc/hosts." % len(host_map), file=stderr)
 
