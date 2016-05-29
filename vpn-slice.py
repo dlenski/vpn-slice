@@ -6,7 +6,8 @@ import signal
 import os, fcntl, time, subprocess as sp
 import argparse
 from collections import OrderedDict as odict
-from ipaddress import ip_network, ip_address, IPv4Network, IPv6Network
+from enum import Enum
+from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 DIG = '/usr/bin/dig'
 IPROUTE = '/sbin/ip'
@@ -80,22 +81,32 @@ def callip(*args):
         return {w[ii]:w[ii+1] for ii in range(start, len(w), 2) if w[ii] in keys}
 
 # Environment variables which may be passed by our caller (as listed in /usr/share/vpnc-scripts/vpnc-script)
-evs = ['reason', 'VPNGATEWAY', 'TUNDEV', 'CISCO_DEF_DOMAIN', 'CISCO_BANNER',
-       'INTERNAL_IP4_ADDRESS', 'INTERNAL_IP4_MTU', 'INTERNAL_IP4_NETMASK', 'INTERNAL_IP4_NETMASKLEN', 'INTERNAL_IP4_NETADDR', 'INTERNAL_IP4_DNS', 'INTERNAL_IP4_NBNS',
-       'INTERNAL_IP6_ADDRESS',                     'INTERNAL_IP6_NETMASK',                                                    'INTERNAL_IP6_DNS' ]
-env = odict((k,os.environ[k]) for k in evs if k in os.environ)
-
-reason = env.get('reason')
-gateway = env.get('VPNGATEWAY')
-tundev = env.get('TUNDEV')
-domain = env.get('CISCO_DEF_DOMAIN')
-banner = env.get('CISCO_BANNER')
-myaddr = env.get('INTERNAL_IP4_ADDRESS')
-mtu = env.get('INTERNAL_IP4_MTU')
-netmask = env.get('INTERNAL_IP4_NETMASK')
-netaddr = env.get('INTERNAL_IP4_NETADDR')
-dns = [ip_address(x) for x in env.get('INTERNAL_IP4_DNS','').split()]
-nbns = [ip_address(x) for x in env.get('INTERNAL_IP4_NBNS','').split()]
+reasons = Enum('reasons', 'pre_init connect disconnect reconnect')
+evs = [
+    ('reason','reason',lambda x: reasons[x.replace('-','_')]),
+    ('gateway','VPNGATEWAY',ip_address),
+    ('tundev','TUNDEV',str),
+    ('domain','CISCO_DEF_DOMAIN',str),
+    ('banner','CISCO_BANNER',str),
+    ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address),
+    ('mtu','INTERNAL_IP4_MTU',int),
+    ('netmask','INTERNAL_IP4_NETMASK',IPv4Address),
+    (None,'INTERNAL_IP4_NETMASKLEN',int), # redundant?
+    ('netaddr','INTERNAL_IP4_NETADDR',IPv4Address),
+    ('dns','INTERNAL_IP4_DNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
+    ('nbns','INTERNAL_IP4_NBNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
+    ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Address),
+    ('netmask6','INTERNAL_IP6_NETMASK',IPv6Address),
+    ('dns6','INTERNAL_IP6_DNS',lambda x: [IPv6Address(x) for x in x.split()],[]),
+]
+for var, envar, maker, *default in evs:
+    if envar in os.environ: val = maker(os.environ[envar])
+    elif default: val, = default
+    else: val = None
+    if var is not None: globals()[var] = val
+#for var, envar, maker, *default in evs:
+#    if var:
+#        print("  %s=%s" % (var, repr(globals()[var])), file=stderr)
 
 # Parse command-line arguments
 p = argparse.ArgumentParser()
@@ -128,16 +139,16 @@ if args.dump:
         caller = 'PID %d' % parent
 
     print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
-    for var,val in env.items():
-        print('  %s=%s' % (var, repr(val)), file=stderr)
+    for var, envar, *rest in evs:
+        print('  %s=%s' % (envar, repr(os.environ.get(envar))), file=stderr)
 
 ########################################
 
-if reason=='pre-init':
+if reason==reasons.pre_init:
     if not os.access('/dev/net/tun', os.R_OK|os.W_OK):
         raise OSError("can't read and write /dev/net/tun")
 
-elif reason=='disconnect':
+elif reason==reasons.disconnect:
     for pidfile in args.kill:
         try:
             pid = int(open(pidfile).read())
@@ -157,7 +168,7 @@ elif reason=='disconnect':
     except sp.CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % gateway, file=stderr)
 
-elif reason=='connect':
+elif reason==reasons.connect:
     if args.banner and banner:
         print("Connect Banner:")
         for l in banner.splitlines(): print("| "+l)
