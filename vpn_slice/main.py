@@ -162,8 +162,8 @@ vpncenv = [
     ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address),
     ('mtu','INTERNAL_IP4_MTU',int),
     ('netmask','INTERNAL_IP4_NETMASK',IPv4Address),
-    (None,'INTERNAL_IP4_NETMASKLEN',int), # redundant?
-    ('netaddr','INTERNAL_IP4_NETADDR',IPv4Address),
+    ('netmasklen','INTERNAL_IP4_NETMASKLEN',int),
+    ('network','INTERNAL_IP4_NETADDR',IPv4Network),
     ('dns','INTERNAL_IP4_DNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
     ('nbns','INTERNAL_IP4_NBNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
     ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Address),
@@ -180,6 +180,9 @@ def parse_env(env=None, environ=os.environ):
         elif default: val, = default
         else: val = None
         if var is not None: env[var] = val
+    if env.network:
+        env.network = env.network.supernet(new_prefix=env.netmasklen)
+        assert env.network.netmask==env.netmask
     return env
 
 # Parse command-line arguments
@@ -196,6 +199,7 @@ def parse_args(env, args=None):
     g = p.add_argument_group('Routing and hostname options')
     g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
     g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
+    g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP4_NETADDR/$INTERNAL_IP4_NETMASKLEN)")
     g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
     g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers and add them to /etc/hosts')
@@ -203,6 +207,8 @@ def parse_args(env, args=None):
 
     args.subnets = [x for x in args.hosts if isinstance(x, (IPv4Network, IPv6Network))]
     args.hosts = [x for x in args.hosts if not isinstance(x, (IPv4Network, IPv6Network))]
+    if args.route_internal:
+        args.subnets.append(env.network)
     return p, args
 
 def main():
