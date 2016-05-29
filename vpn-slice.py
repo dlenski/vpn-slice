@@ -104,9 +104,6 @@ for var, envar, maker, *default in evs:
     elif default: val, = default
     else: val = None
     if var is not None: globals()[var] = val
-#for var, envar, maker, *default in evs:
-#    if var:
-#        print("  %s=%s" % (var, repr(globals()[var])), file=stderr)
 
 # Parse command-line arguments
 p = argparse.ArgumentParser()
@@ -140,7 +137,10 @@ if args.dump:
 
     print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
     for var, envar, *rest in evs:
-        print('  %s=%s' % (envar, repr(os.environ.get(envar))), file=stderr)
+        if var:
+            print('  %s=%s  =>  %s=%s' % (envar, repr(os.environ.get(envar)), var, repr(globals()[var])), file=stderr)
+        else:
+            print('  %s=%s  =>  IGNORED' % (envar, repr(os.environ.get(envar))), file=stderr)
 
 ########################################
 
