@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+
+from __future__ import print_function
+from sys import stderr, argv
+import signal
+from collections import OrderedDict
+import os, subprocess as sp
+import argparse
+from enum import Enum
+from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network
+
+if os.uname().sysname=='Linux':
+    from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute
+else:
+    raise OSError('non-Linux operating system is unsupported')
+
+# Quacks like a dict and an object
+class slurpy(dict):
+    def __getattr__(self, k):
+        try:
+            return self[k]
+        except KeyError as e:
+            raise AttributeError(*e.args)
+    def __setattr__(self, k, v):
+        self[k]=v
+
+def networkify(host):
+    try:
+        return ip_network(host)
+    except ValueError:
+        return host
+
+def names_for(host, domain, short=True, long=True):
+    if '.' in host: first, rest = host.split('.', 1)
+    else: first, rest = host, None
+
+    names = []
+    if long:
+        if rest: names.append(host)
+        elif domain: names.append(host+'.'+domain)
+    if short:
+        if not rest: names.append(host)
+        elif rest==domain: names.append(first)
+    return names
+
+########################################
+
+def do_pre_init(env, args):
+    check_tun()
+
+def do_disconnect(env, args):
+    for pidfile in args.kill:
+        try:
+            pid = int(open(pidfile).read())
+            os.kill(pid, signal.SIGTERM)
+            if args.verbose:
+                print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
+        except (IOError, ValueError, OSError):
+            pass
+
+    removed = write_hosts({}, 'vpn-slice-%s AUTOCREATED' % args.name)
+    if args.verbose:
+        print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
+
+    # delete explicit route to gateway
+    try:
+        iproute('route', 'del', env.gateway)
+    except sp.CalledProcessError:
+        print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
+
+def do_connect(env, args):
+    if args.banner and env.banner:
+        print("Connect Banner:")
+        for l in env.banner.splitlines(): print("| "+l)
+
+    # set explicit route to gateway
+    gwr = iproute('route', 'get', env.gateway)
+    iproute('route', 'replace', env.gateway, gwr)
+
+    # configure MTU
+    mtu = env.mtu
+    if mtu is None:
+        dev = gwr.get('dev')
+        mtudev = dev and iproute('link', 'show', dev).get('mtu')
+        mtu = mtudev and int(mtudev) - 88
+        if mtu:
+            print("WARNING: guessing MTU is %d (the MTU of %s - 88)" % (mtu, dev), file=stderr)
+        else:
+            mtu = 1412
+            print("WARNING: guessing default MTU of %d (couldn't determine MTU of %s)" % (mtu, dev), file=stderr)
+    iproute('link', 'set', 'dev', env.tundev, 'up', 'mtu', mtu)
+
+    # set peer
+    iproute('addr', 'add', IPv4Network(env.myaddr), 'peer', env.myaddr, 'dev', env.tundev)
+
+    # set up routes to the DNS and Windows name servers and subnets
+    for dest in env.dns+env.nbns+args.subnets:
+        iproute('route', 'replace', dest, 'dev', env.tundev)
+    else:
+        iproute('route', 'flush', 'cache')
+        if args.verbose:
+            print("Added routes for %d nameservers and %d subnets." % (len(env.dns)+len(env.nbns), len(args.subnets)), file=stderr)
+
+def do_post_connect(env, args):
+    # lookup named hosts for which we need routes and/or host_map entries
+    # (the DNS/NBNS servers already have their routes)
+    ip_routes = set()
+    host_map = []
+
+    if args.ns_lookup:
+        if args.verbose:
+            print("Doing reverse lookup for %d nameservers..." % (len(env.dns)+len(env.nbns)), file=stderr)
+        for ip in env.dns+env.nbns:
+            host = dig(ip, env.dns, args.domain, reverse=True)
+            if host is None:
+                print("WARNING: Reverse lookup for %s on VPN DNS servers failed." % ip, file=stderr)
+            else:
+                names = names_for(host, args.domain, args.short_names)
+                if args.verbose:
+                    print("  %s = %s" % (ip, ', '.join(names)))
+                host_map.append((ip, names))
+
+    if args.verbose:
+        print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
+    for host in args.hosts:
+        ip = dig(host, env.dns, args.domain)
+        if ip is None:
+            print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
+        else:
+            if args.verbose:
+                print("  %s = %s" % (host, ip), file=stderr)
+            ip_routes.add(ip)
+            if args.host_lookup:
+                names = names_for(host, args.domain, args.short_names)
+                host_map.append((ip, names))
+
+    # add them to /etc/hosts
+    if host_map:
+        write_hosts(host_map, 'vpn-slice-%s AUTOCREATED' % args.name)
+        if args.verbose:
+            print("Added %d VPN hosts to /etc/hosts." % len(host_map), file=stderr)
+
+    # add routes to hosts
+    for ip in ip_routes:
+        iproute('route', 'replace', ip, 'dev', env.tundev)
+    else:
+        iproute('route', 'flush', 'cache')
+        if args.verbose:
+            print("Added routes for %d named hosts." % len(ip_routes), file=stderr)
+
+########################################
+
+# Translate environment variables which may be passed by our caller
+# into a more Pythonic form (these are take from vpnc-script)
+reasons = Enum('reasons', 'pre_init connect disconnect reconnect')
+vpncenv = [
+    ('reason','reason',lambda x: reasons[x.replace('-','_')]),
+    ('gateway','VPNGATEWAY',ip_address),
+    ('tundev','TUNDEV',str),
+    ('domain','CISCO_DEF_DOMAIN',str),
+    ('banner','CISCO_BANNER',str),
+    ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address),
+    ('mtu','INTERNAL_IP4_MTU',int),
+    ('netmask','INTERNAL_IP4_NETMASK',IPv4Address),
+    (None,'INTERNAL_IP4_NETMASKLEN',int), # redundant?
+    ('netaddr','INTERNAL_IP4_NETADDR',IPv4Address),
+    ('dns','INTERNAL_IP4_DNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
+    ('nbns','INTERNAL_IP4_NBNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
+    ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Address),
+    ('netmask6','INTERNAL_IP6_NETMASK',IPv6Address),
+    ('dns6','INTERNAL_IP6_DNS',lambda x: [IPv6Address(x) for x in x.split()],[]),
+]
+
+def parse_env(env=None, environ=os.environ):
+    global vpncenv
+    if env is None:
+        env = slurpy()
+    for var, envar, maker, *default in vpncenv:
+        if envar in environ: val = maker(environ[envar])
+        elif default: val, = default
+        else: val = None
+        if var is not None: env[var] = val
+    return env
+
+# Parse command-line arguments
+def parse_args(env, args=None):
+    p = argparse.ArgumentParser()
+    p.add_argument('hosts', nargs='*', type=networkify, help='List of VPN-internal hostnames or subnets (e.g. 192.168.0.0/24) to add to routing and /etc/hosts.')
+    g = p.add_argument_group('Subprocess options')
+    p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect')
+    p.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
+    g = p.add_argument_group('Informational options')
+    g.add_argument('-v','--verbose', action='store_true', help="Explain what %(prog)s is doing")
+    g.add_argument('--banner', action='store_true', help='Pass banner message (default is to suppress it)')
+    g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
+    g = p.add_argument_group('Routing and hostname options')
+    g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
+    g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
+    g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not add either short or long hostnames to /etc/hosts')
+    g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
+    g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers and add them to /etc/hosts')
+    args = p.parse_args(args, slurpy())
+
+    args.subnets = [x for x in args.hosts if isinstance(x, (IPv4Network, IPv6Network))]
+    args.hosts = [x for x in args.hosts if not isinstance(x, (IPv4Network, IPv6Network))]
+    return p, args
+
+def main():
+    env = parse_env()
+    p, args = parse_args(env)
+    if env.reason is None:
+        p.error("Must be called as vpnc-script, with $reason set")
+
+    if args.dump:
+        ppid = os.getppid()
+        exe = pid2exe(ppid)
+        if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
+            ppid = ppidof(ppid)
+            exe = pid2exe(ppid)
+        caller = '%s (PID %d)'%(exe, ppid) if exe else 'PID %d' % ppid
+
+        print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
+        width = max(len(envar) for var, envar, *rest in vpncenv if envar in os.environ)
+        for var, envar, *rest in vpncenv:
+            if envar in os.environ:
+                pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
+                print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
+
+    if env.myaddr6 or env.netmask6 or env.dns6:
+        print('WARNING: IPv6 variables set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+
+    if env.reason==reasons.pre_init:
+        do_pre_init(env, args)
+    elif env.reason==reasons.disconnect:
+        do_disconnect(env, args)
+    elif env.reason==reasons.connect:
+        do_connect(env, args)
+
+        # we continue running in a new child process, so the VPN can actually
+        # start in the background, because we need to actually send traffic to it
+        if args.fork and os.fork():
+            raise SystemExit
+
+        do_post_connect(env, args)
+
+if __name__=='__main__':
+    main()
