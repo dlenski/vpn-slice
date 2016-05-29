@@ -129,11 +129,15 @@ if reason is None:
     p.error("Must be called as vpnc-script, with $reason set")
 
 if args.dump:
-    ppid = os.getppid()
+    ppid, exe = os.getppid(), None
     try:
-        caller = '%s (PID %d)' % (os.readlink('/proc/%d/exe'%ppid), ppid)
-    except OSError:
-        caller = 'PID %d' % parent
+        exe = os.readlink('/proc/%d/exe' % ppid)
+        if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
+            ppid = int(next(open('/proc/%d/stat'%ppid)).split()[3])
+            exe = os.readlink('/proc/%d/exe' % ppid)
+    except (OSError, ValueError, IOError):
+        pass
+    caller = '%s (PID %d)'%(exe, ppid) if exe else 'PID %d' % ppid
 
     print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
     for var, envar, *rest in evs:
