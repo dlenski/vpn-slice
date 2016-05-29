@@ -6,7 +6,11 @@ or [VPNC](https://www.unix-ag.uni-kl.de/~massar/vpnc/).
 
 Instead of trying to copy the behavior of the standard Cisco VPN clients,
 which normally reroute **all** your network traffic through the VPN,
-this one tries to minimize your contact with an intrusive corporate VPN:
+this one tries to minimize your contact with an intrusive corporate VPN.
+This is also known as a "split-tunnel" VPN, since it splits your traffic
+between the VPN tunnel and your normal network interfaces.
+
+`vpn-slice` makes it easy to set up a split-tunnel VPN:
 
 * It only routes traffic for **specific hosts or subnets** through the VPN.
 * It automatically looks up named hosts, using the VPN's DNS servers,
@@ -16,19 +20,26 @@ this one tries to minimize your contact with an intrusive corporate VPN:
 
 ## Who this is for
 
-If you are using a VPN to route *all* your traffic (such as for
-privacy or to avoid censorship in repressive countries), you **do not
-want this**.
+If you are using a VPN to route *all* your traffic for privacy reasons
+or to avoid censorship in repressive countries), then you **do not want
+to use this**.
 
-This is for people who have to connect to rapacious corporate VPNs
-which monitor and filter and otherwise impede their network traffic,
-and wish to route as little traffic as possible through those VPNs.
+The purpose of this tool is almost the opposite; it makes it easy to
+connect to a VPN while **minimizing** the traffic that passes over the
+VPN.
+
+This is for people who have to connect to the high-security VPNs of
+corporations or other bureaucracies (which monitor and filter and
+otherwise impede network traffic), and thus wish to route as little
+traffic as possible through those VPNs.
 
 ## Requirements
 
 * Python 3.3+
-* DiG (DNS lookup tool; tested with v9.9.5)
-* Modern version of Linux (it calls `ip` for all routing setup)
+* [`dig`](https://en.wikipedia.org/wiki/Dig_(command)) (DNS lookup
+  tool; tested with v9.9.5)
+* Linux OS (the [`iproute2`](https://en.wikipedia.org/wiki/iproute2)
+  utilities are used for all routing setup)
 
 ## Usage
 
@@ -82,4 +93,4 @@ Running with `--verbose` makes it explain what it is doing, while running with
 
 * Fix timing issues
 * IPv6 support?
-* Support OS other than Linux
+* Support OSes other than Linux?

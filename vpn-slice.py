@@ -112,9 +112,9 @@ g = p.add_argument_group('Subprocess options')
 p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect')
 p.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
 g = p.add_argument_group('Informational options')
-g.add_argument('-v','--verbose', action='store_true', help="Show what I am doing during connect and disconnect")
+g.add_argument('-v','--verbose', action='store_true', help="Explain what %(prog)s is doing")
 g.add_argument('--banner', action='store_true', help='Pass banner message (default is to suppress it)')
-g.add_argument('--dump', action='store_true', help='Dump environment variables passed by caller to vpnc-script')
+g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
 g = p.add_argument_group('Routing and hostname options')
 g.add_argument('-n','--name', default=tundev, help='Name of this VPN (default is $TUNDEV)')
 g.add_argument('-d','--domain', default=domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
@@ -140,11 +140,14 @@ if args.dump:
     caller = '%s (PID %d)'%(exe, ppid) if exe else 'PID %d' % ppid
 
     print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
+    width = max(len(ev[1]) for ev in evs if ev[1] in os.environ)
     for var, envar, *rest in evs:
-        if var:
-            print('  %s=%s  =>  %s=%s' % (envar, repr(os.environ.get(envar)), var, repr(globals()[var])), file=stderr)
-        else:
-            print('  %s=%s  =>  IGNORED' % (envar, repr(os.environ.get(envar))), file=stderr)
+        if envar in os.environ:
+            pyvar = var+'='+repr(globals()[var]) if var else 'IGNORED'
+            print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
+
+if myaddr6 or netmask6 or dns6:
+    print('WARNING: IPv6 variables set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
 
 ########################################
 
