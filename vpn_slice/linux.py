@@ -4,6 +4,7 @@ import subprocess as sp
 DIG = '/usr/bin/dig'
 IPROUTE = '/sbin/ip'
 HOSTS = '/etc/hosts'
+IPTABLES = '/sbin/iptables'
 
 def pid2exe(pid):
     try:
@@ -68,3 +69,8 @@ def iproute(*args):
     else:
         w = sp.check_output(cl).decode().split()
         return {w[ii]:w[ii+1] for ii in range(start, len(w), 2) if w[ii] in keys}
+
+def iptables(*args):
+    global IPTABLES
+    cl = [IPTABLES] + list(args)
+    sp.check_call(cl)

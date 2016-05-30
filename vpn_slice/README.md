@@ -40,7 +40,8 @@ traffic as possible through those VPNs.
 * [`dig`](https://en.wikipedia.org/wiki/Dig_(command)) (DNS lookup
   tool; tested with v9.9.5)
 * Linux OS (the [`iproute2`](https://en.wikipedia.org/wiki/iproute2)
-  utilities are used for all routing setup)
+  and [`iptables`](http://en.wikipedia.org/wiki/iptables) utilities
+  are used for all routing setup)
 
 You can install the latest build with `pip` (make sure you are using
 the Python 3.x version, usually invoked with `pip3`):

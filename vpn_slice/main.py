@@ -10,7 +10,7 @@ from enum import Enum
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 if os.uname().sysname=='Linux':
-    from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute
+    from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables
 else:
     raise OSError('non-Linux operating system is unsupported')
 
@@ -68,6 +68,14 @@ def do_disconnect(env, args):
     except sp.CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
+    # remove iptables rules for incoming traffic
+    if not args.incoming:
+        try:
+            iptables('-D','INPUT','-i',env.tundev,'-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT')
+            iptables('-D','INPUT','-i',env.tundev,'-j','DROP')
+        except sp.CalledProcessError:
+            print("WARNING: failed to remove iptables rules for VPN interface (%s); check iptables -S" % env.tundev, file=stderr)
+
 def do_connect(env, args):
     if args.banner and env.banner:
         print("Connect Banner:")
@@ -76,6 +84,20 @@ def do_connect(env, args):
     # set explicit route to gateway
     gwr = iproute('route', 'get', env.gateway)
     iproute('route', 'replace', env.gateway, gwr)
+
+    # drop incoming traffic from VPN
+    if not args.incoming:
+        try:
+            iptables('-A','INPUT','-i',env.tundev,'-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT')
+            try:
+                iptables('-A','INPUT','-i',env.tundev,'-j','DROP')
+            except sp.CalledProcessError:
+                iptables('-D','INPUT','-i',env.tundev,'-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT')
+                raise
+            if args.verbose:
+                print("Blocked incoming traffic from VPN interface with iptables.", file=stderr)
+        except sp.CalledProcessError:
+            print("WARNING: failed to block incoming traffic", file=stderr)
 
     # configure MTU
     mtu = env.mtu
@@ -197,6 +219,7 @@ def parse_args(env, args=None):
     g.add_argument('--banner', action='store_true', help='Pass banner message (default is to suppress it)')
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g = p.add_argument_group('Routing and hostname options')
+    g.add_argument('-i','--incoming', action='store_true', help='Allow incoming traffic from VPN (default is to block)')
     g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
     g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP4_NETADDR/$INTERNAL_IP4_NETMASKLEN)")
