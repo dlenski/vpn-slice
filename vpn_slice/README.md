@@ -67,8 +67,11 @@ For example:
 
 or
 
+    # With vpnc, you *must* specify an absolute path for the disconnect hook
+    # to work correctly, due to a bug which I reported:
+    #   http://lists.unix-ag.uni-kl.de/pipermail/vpnc-devel/2016-August/004199.html
     $ sudo vpnc config_file \
-           --script 'vpn-slice 192.168.1.0/24 hostname1 hostname2'
+           --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 hostname2'
 
 There are many command-line options to alter the behavior of
 `vpn-slice`; try `vpn-slice --help` to show them all.
