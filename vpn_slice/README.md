@@ -1,3 +1,15 @@
+
+Table of Contents
+=================
+
+  * [vpn-slice](#vpn-slice)
+    * [Who this is for](#who-this-is-for)
+    * [Requirements](#requirements)
+    * [Usage](#usage)
+  * [Inspiration](#inspiration)
+  * [License](#license)
+    * [TODO](#todo)
+
 # vpn-slice
 
 This is a replacement for the
