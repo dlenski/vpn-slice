@@ -6,6 +6,10 @@ IPROUTE = '/sbin/ip'
 HOSTS = '/etc/hosts'
 IPTABLES = '/sbin/iptables'
 
+for binary in (DIG, IPROUTE, IPTABLES):
+    if not os.access(binary, os.X_OK):
+        raise OSError("cannot execute %s")
+
 def pid2exe(pid):
     try:
         return os.readlink('/proc/%d/exe' % pid)
