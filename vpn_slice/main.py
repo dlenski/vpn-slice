@@ -192,12 +192,19 @@ vpncenv = [
     ('netmask6','INTERNAL_IP6_NETMASK',IPv6Address),
     ('dns6','INTERNAL_IP6_DNS',lambda x: [IPv6Address(x) for x in x.split()],[]),
 ]
+pppenv = [
+    ('reason','reason',lambda x: reasons[x.replace('-','_')]),
+    ('tundev','IFNAME',str),
+    ('myaddr','IPLOCAL',IPv4Address),
+    ('dns',('DNS1','DNS2'),IPv4Address),
+]
 
-def parse_env(env=None, environ=os.environ):
-    global vpncenv
+def parse_env(env=None, environ=os.environ, template=vpncenv):
+    global vpncenv, pppenv
     if env is None:
         env = slurpy()
     for var, envar, maker, *default in vpncenv:
+        if isinstance(envar, tuple) and any(v in environ for v in envar): val = [maker(environ[envar]) for v in envar if v in environ]
         if envar in environ: val = maker(environ[envar])
         elif default: val, = default
         else: val = None
