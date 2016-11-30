@@ -116,12 +116,13 @@ def do_connect(env, args):
     iproute('addr', 'add', IPv4Network(env.myaddr), 'peer', env.myaddr, 'dev', env.tundev)
 
     # set up routes to the DNS and Windows name servers and subnets
-    for dest in env.dns+env.nbns+args.subnets:
+    ns = env.dns + (env.nbns if args.nbns else [])
+    for dest in ns+args.subnets:
         iproute('route', 'replace', dest, 'dev', env.tundev)
     else:
         iproute('route', 'flush', 'cache')
         if args.verbose:
-            print("Added routes for %d nameservers and %d subnets." % (len(env.dns)+len(env.nbns), len(args.subnets)), file=stderr)
+            print("Added routes for %d nameservers and %d subnets." % (len(ns), len(args.subnets)), file=stderr)
 
 def do_post_connect(env, args):
     # lookup named hosts for which we need routes and/or host_map entries
@@ -130,9 +131,10 @@ def do_post_connect(env, args):
     host_map = []
 
     if args.ns_lookup:
+        nsl = env.dns + (env.nbns if args.nbns else [])
         if args.verbose:
-            print("Doing reverse lookup for %d nameservers..." % (len(env.dns)+len(env.nbns)), file=stderr)
-        for ip in env.dns+env.nbns:
+            print("Doing reverse lookup for %d nameservers..." % len(nsl), file=stderr)
+        for ip in nsl:
             host = dig(ip, env.dns, args.domain, reverse=True)
             if host is None:
                 print("WARNING: Reverse lookup for %s on VPN DNS servers failed." % ip, file=stderr)
@@ -222,7 +224,8 @@ def parse_args(env, args=None):
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP4_NETADDR/$INTERNAL_IP4_NETMASKLEN)")
     g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
-    g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers and add them to /etc/hosts')
+    g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers or add them to /etc/hosts')
+    g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g = p.add_argument_group('Debugging options')
     g.add_argument('-v','--verbose', action='store_true', help="Explain what %(prog)s is doing")
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
