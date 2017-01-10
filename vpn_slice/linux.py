@@ -1,14 +1,19 @@
 import os, fcntl
 import subprocess as sp
+from shutil import which
 
-DIG = '/usr/bin/dig'
-IPROUTE = '/sbin/ip'
-HOSTS = '/etc/hosts'
-IPTABLES = '/sbin/iptables'
+def find_paths():
+    global DIG, IPROUTE, HOSTS, IPTABLES
+    DIG = which('dig') or '/usr/bin/dig'
+    IPROUTE = which('ip') or '/sbin/ip'
+    IPTABLES = which('iptables') or '/sbin/tables'
+    HOSTS = '/etc/hosts'
 
-for binary in (DIG, IPROUTE, IPTABLES):
-    if not os.access(binary, os.X_OK):
-        raise OSError("cannot execute %s")
+    for binary in (DIG, IPROUTE, IPTABLES):
+        if not os.access(binary, os.X_OK):
+            raise OSError("cannot execute %s")
+    if not os.access(HOSTS, os.R_OK | os.W_OK):
+        raise OSError("cannot read/write %s" % HOSTS)
 
 def pid2exe(pid):
     try:

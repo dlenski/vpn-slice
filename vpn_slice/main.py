@@ -11,7 +11,8 @@ from itertools import chain
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 if os.uname().sysname=='Linux':
-    from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables
+    from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables, find_paths
+    find_paths()
 else:
     raise OSError('non-Linux operating system is unsupported')
 
@@ -34,7 +35,7 @@ def net_or_host_param(s):
             return ip_network(s)
         except ValueError:
             return s
-        
+
 
 def names_for(host, domain, short=True, long=True):
     if '.' in host: first, rest = host.split('.', 1)
