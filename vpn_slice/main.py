@@ -160,7 +160,7 @@ def do_post_connect(env, args):
             if args.verbose:
                 print("  %s = %s" % (host, ip), file=stderr)
             ip_routes.add(ip)
-            if args.host_lookup:
+            if args.host_names:
                 names = names_for(host, args.domain, args.short_names)
                 host_map.append((ip, names))
     for ip, aliases in args.aliases.items():
@@ -230,7 +230,7 @@ def parse_args(env, args=None):
     g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
     g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP4_NETADDR/$INTERNAL_IP4_NETMASKLEN)")
-    g.add_argument('--no-host-lookup', action='store_false', dest='host_lookup', default=True, help='Do not add either short or long hostnames to /etc/hosts')
+    g.add_argument('--no-host-names', action='store_false', dest='host_names', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
     g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers or add them to /etc/hosts')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')

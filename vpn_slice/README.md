@@ -88,7 +88,7 @@ or
 Notice that `vpn-slice` accepts both *hostnames alone* (`hostname1`) as well as
 *host-to-IP* aliases (`alias2=192.168.1.43`). The former are first looked up using the
 VPN's DNS servers. Both are also added to the routing table, as well as to
-`/etc/hosts` (unless `--no-host-lookup` is specified).
+`/etc/hosts` (unless `--no-host-names` is specified).
 
 There are many command-line options to alter the behavior of
 `vpn-slice`; try `vpn-slice --help` to show them all.
