@@ -17,11 +17,13 @@ This is a replacement for the
 used by [OpenConnect](http://www.infradead.org/openconnect) or
 [VPNC](https://www.unix-ag.uni-kl.de/~massar/vpnc).
 
-Instead of trying to copy the behavior of the standard Cisco VPN clients,
+Instead of trying to copy the behavior of standard corporate VPN clients,
 which normally reroute **all** your network traffic through the VPN,
-this one tries to minimize your contact with an intrusive corporate VPN.
-This is also known as a "split-tunnel" VPN, since it splits your traffic
-between the VPN tunnel and your normal network interfaces.
+this one tries to _minimize your contact_ with an intrusive VPN.
+This is also known as a
+[split-tunnel](https://en.wikipedia.org/wiki/Split_tunneling) VPN, since
+it splits your traffic between the VPN tunnel and your normal network
+interfaces.
 
 `vpn-slice` makes it easy to set up a split-tunnel VPN:
 
@@ -34,7 +36,7 @@ between the VPN tunnel and your normal network interfaces.
 ## Who this is for
 
 If you are using a VPN to route *all* your traffic for privacy reasons
-or to avoid censorship in repressive countries), then you **do not want
+(or to avoid censorship in repressive countries), then you **do not want
 to use this**.
 
 The purpose of this tool is almost the opposite; it makes it easy to
