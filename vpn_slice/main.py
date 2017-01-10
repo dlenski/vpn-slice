@@ -7,6 +7,7 @@ from collections import OrderedDict
 import os, subprocess as sp
 import argparse
 from enum import Enum
+from itertools import chain
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network
 
 if os.uname().sysname=='Linux':
@@ -24,11 +25,16 @@ class slurpy(dict):
     def __setattr__(self, k, v):
         self[k]=v
 
-def networkify(host):
-    try:
-        return ip_network(host)
-    except ValueError:
-        return host
+def net_or_host_param(s):
+    if '=' in s:
+        host, ip = s.split('=', 1)
+        return host, ip_address(ip)
+    else:
+        try:
+            return ip_network(s)
+        except ValueError:
+            return s
+        
 
 def names_for(host, domain, short=True, long=True):
     if '.' in host: first, rest = host.split('.', 1)
@@ -115,14 +121,14 @@ def do_connect(env, args):
     # set peer
     iproute('addr', 'add', IPv4Network(env.myaddr), 'peer', env.myaddr, 'dev', env.tundev)
 
-    # set up routes to the DNS and Windows name servers and subnets
+    # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + (env.nbns if args.nbns else [])
-    for dest in ns+args.subnets:
+    for dest in chain(ns, args.subnets, args.aliases):
         iproute('route', 'replace', dest, 'dev', env.tundev)
     else:
         iproute('route', 'flush', 'cache')
         if args.verbose:
-            print("Added routes for %d nameservers and %d subnets." % (len(ns), len(args.subnets)), file=stderr)
+            print("Added routes for %d nameservers, %d subnets, %d aliases." % (len(ns), len(args.subnets), len(args.aliases)), file=stderr)
 
 def do_post_connect(env, args):
     # lookup named hosts for which we need routes and/or host_map entries
@@ -157,12 +163,14 @@ def do_post_connect(env, args):
             if args.host_lookup:
                 names = names_for(host, args.domain, args.short_names)
                 host_map.append((ip, names))
+    for ip, aliases in args.aliases.items():
+        host_map.append((ip, aliases))
 
     # add them to /etc/hosts
     if host_map:
         write_hosts(host_map, 'vpn-slice-%s AUTOCREATED' % args.name)
         if args.verbose:
-            print("Added %d VPN hosts to /etc/hosts." % len(host_map), file=stderr)
+            print("Added hostnames and aliases for %d addresses to /etc/hosts." % len(host_map), file=stderr)
 
     # add routes to hosts
     for ip in ip_routes:
@@ -212,7 +220,7 @@ def parse_env(env=None, environ=os.environ):
 # Parse command-line arguments
 def parse_args(env, args=None):
     p = argparse.ArgumentParser()
-    p.add_argument('hosts', nargs='*', type=networkify, help='List of VPN-internal hostnames or subnets (e.g. 192.168.0.0/24) to add to routing and /etc/hosts.')
+    p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
     p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     g = p.add_argument_group('Informational options')
@@ -232,8 +240,17 @@ def parse_args(env, args=None):
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     args = p.parse_args(args, slurpy())
 
-    args.subnets = [x for x in args.hosts if isinstance(x, (IPv4Network, IPv6Network))]
-    args.hosts = [x for x in args.hosts if not isinstance(x, (IPv4Network, IPv6Network))]
+    args.subnets = []
+    args.hosts = []
+    args.aliases = {}
+    for x in args.routes:
+        if isinstance(x, (IPv4Network, IPv6Network)):
+            args.subnets.append(x)
+        elif isinstance(x, str):
+            args.hosts.append(x)
+        else:
+            host, ip = x
+            args.aliases.setdefault(ip, []).append(host)
     if args.route_internal:
         args.subnets.append(env.network)
     return p, args

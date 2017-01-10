@@ -69,13 +69,13 @@ v7.06 and vpnc v0.5.3.
 For example:
 
     $ sudo openconnect gateway.bigcorp.com -u user1234 \
-        -s 'vpn-slice 192.168.1.0/24 hostname1 hostname2'
+        -s 'vpn-slice 192.168.1.0/24 hostname1 alias2=192.168.1.43'
     $ cat /etc/hosts
     ...
     192.168.1.1 dnsmain00 dnsmain00.bigcorp.com			# vpn-slice-tun0 AUTOCREATED
     192.168.1.2 dnsbackup2 dnsmain2.bigcorp.com			# vpn-slice-tun0 AUTOCREATED
     192.168.1.57 hostname1 hostname1.bigcorp.com		# vpn-slice-tun0 AUTOCREATED
-    192.168.1.173 hostname1 hostname1.bigcorp.com		# vpn-slice-tun0 AUTOCREATED
+    192.168.1.43 alias2		# vpn-slice-tun0 AUTOCREATED
 
 or
 
@@ -83,7 +83,12 @@ or
     # to work correctly, due to a bug which I reported:
     #   http://lists.unix-ag.uni-kl.de/pipermail/vpnc-devel/2016-August/004199.html
     $ sudo vpnc config_file \
-           --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 hostname2'
+           --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 alias2=192.168.1.43'
+
+Notice that `vpn-slice` accepts both *hostnames alone* (`hostname1`) as well as
+*host-to-IP* aliases (`alias2=192.168.1.43`). The former are first looked up using the
+VPN's DNS servers. Both are also added to the routing table, as well as to
+`/etc/hosts` (unless `--no-host-lookup` is specified).
 
 There are many command-line options to alter the behavior of
 `vpn-slice`; try `vpn-slice --help` to show them all.
