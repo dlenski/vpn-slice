@@ -12,7 +12,6 @@ from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Addr
 
 if os.uname().sysname=='Linux':
     from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables, find_paths
-    find_paths()
 else:
     raise OSError('non-Linux operating system is unsupported')
 
@@ -261,6 +260,8 @@ def main():
     p, args = parse_args(env)
     if env.reason is None:
         p.error("Must be called as vpnc-script, with $reason set")
+
+    find_paths() # find paths of utilities used
 
     if args.dump:
         ppid = os.getppid()
