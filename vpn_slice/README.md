@@ -65,8 +65,9 @@ the Python 3.x version, usually invoked with `pip3`):
 ## Usage
 
 You should specify `vpn-slice` as your connection script with
-`openconnect` or `vpnc`. It has been tested with both OpenConnect
-v7.06 and vpnc v0.5.3.
+`openconnect` or `vpnc`. It has been tested with vpnc v0.5.3, OpenConnect
+v7.06-v7.08 (with both Cisco AnyConnect and Juniper protocols), and also
+[my OpenConnect fork that supports PAN GlobalProtect](//github.com/dlenski/openconnect-gp).
 
 For example:
 
