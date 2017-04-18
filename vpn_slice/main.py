@@ -208,7 +208,11 @@ def parse_env(env=None, environ=os.environ):
     if env is None:
         env = slurpy()
     for var, envar, maker, *default in vpncenv:
-        if envar in environ: val = maker(environ[envar])
+        if envar in environ:
+            try: val = maker(environ[envar])
+            except Exception as e:
+                print('Exception while setting %s from environment variable %s=%r' % (var, envar, environ[envar]), file=stderr)
+                raise
         elif default: val, = default
         else: val = None
         if var is not None: env[var] = val
