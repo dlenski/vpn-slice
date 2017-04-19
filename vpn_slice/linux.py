@@ -6,12 +6,12 @@ def find_paths():
     global DIG, IPROUTE, HOSTS, IPTABLES
     DIG = which('dig') or '/usr/bin/dig'
     IPROUTE = which('ip') or '/sbin/ip'
-    IPTABLES = which('iptables') or '/sbin/tables'
+    IPTABLES = which('iptables') or '/sbin/iptables'
     HOSTS = '/etc/hosts'
 
     for binary in (DIG, IPROUTE, IPTABLES):
         if not os.access(binary, os.X_OK):
-            raise OSError("cannot execute %s")
+            raise OSError("cannot execute %s" % binary)
     if not os.access(HOSTS, os.R_OK | os.W_OK):
         raise OSError("cannot read/write %s" % HOSTS)
 
