@@ -118,11 +118,11 @@ def do_connect(env, args):
             print("WARNING: guessing default MTU of %d (couldn't determine MTU of %s)" % (mtu, dev), file=stderr)
     iproute('link', 'set', 'dev', env.tundev, 'up', 'mtu', mtu)
 
-    # set IPv4 address for tunnel device
-    iproute('addr', 'add', env.myaddr, 'dev', env.tundev)
-
-    # set IPv6 address for tunnel device
-    iproute('addr', 'add', env.myaddr6, 'dev', env.tundev)
+    # set IPv4, IPv6 addresses for tunnel device
+    if env.myaddr:
+        iproute('addr', 'add', env.myaddr, 'dev', env.tundev)
+    if env.myaddr6:
+        iproute('addr', 'add', env.myaddr6, 'dev', env.tundev)
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + (env.nbns if args.nbns else [])
