@@ -295,8 +295,10 @@ def main():
 
     find_paths() # find paths of utilities used
 
-    if env.myaddr6 or env.netmask6 or env.dns6:
-        print('WARNING: IPv6 variables set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+    if env.myaddr6 or env.netmask6:
+        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
+    if env.dns6:
+        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
 
     if env.reason==reasons.pre_init:
         do_pre_init(env, args)
