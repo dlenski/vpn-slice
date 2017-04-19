@@ -265,8 +265,6 @@ def main():
     if env.reason is None:
         p.error("Must be called as vpnc-script, with $reason set")
 
-    find_paths() # find paths of utilities used
-
     if args.dump:
         ppid = os.getppid()
         exe = pid2exe(ppid)
@@ -281,6 +279,8 @@ def main():
             if envar in os.environ:
                 pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
                 print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
+
+    find_paths() # find paths of utilities used
 
     if env.myaddr6 or env.netmask6 or env.dns6:
         print('WARNING: IPv6 variables set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
