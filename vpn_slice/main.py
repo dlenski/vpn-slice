@@ -8,7 +8,7 @@ import os, subprocess as sp
 import argparse
 from enum import Enum
 from itertools import chain
-from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network
+from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
 
 if os.uname().sysname=='Linux':
     from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables, find_paths
@@ -118,8 +118,11 @@ def do_connect(env, args):
             print("WARNING: guessing default MTU of %d (couldn't determine MTU of %s)" % (mtu, dev), file=stderr)
     iproute('link', 'set', 'dev', env.tundev, 'up', 'mtu', mtu)
 
-    # set peer
-    iproute('addr', 'add', IPv4Network(env.myaddr), 'peer', env.myaddr, 'dev', env.tundev)
+    # set IPv4, IPv6 addresses for tunnel device
+    if env.myaddr:
+        iproute('addr', 'add', env.myaddr, 'dev', env.tundev)
+    if env.myaddr6:
+        iproute('addr', 'add', env.myaddr6, 'dev', env.tundev)
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + (env.nbns if args.nbns else [])
@@ -191,15 +194,15 @@ vpncenv = [
     ('tundev','TUNDEV',str),
     ('domain','CISCO_DEF_DOMAIN',str),
     ('banner','CISCO_BANNER',str),
-    ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address),
+    ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address), # a.b.c.d
     ('mtu','INTERNAL_IP4_MTU',int),
-    ('netmask','INTERNAL_IP4_NETMASK',IPv4Address),
+    ('netmask','INTERNAL_IP4_NETMASK',IPv4Address), # a.b.c.d
     ('netmasklen','INTERNAL_IP4_NETMASKLEN',int),
-    ('network','INTERNAL_IP4_NETADDR',IPv4Network),
+    ('network','INTERNAL_IP4_NETADDR',IPv4Address), # a.b.c.d
     ('dns','INTERNAL_IP4_DNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
     ('nbns','INTERNAL_IP4_NBNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
-    ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Address),
-    ('netmask6','INTERNAL_IP6_NETMASK',IPv6Address),
+    ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Interface), # x:y::z or x:y::z/p
+    ('netmask6','INTERNAL_IP6_NETMASK',IPv6Interface), # x:y:z:: or x:y::z/p
     ('dns6','INTERNAL_IP6_DNS',lambda x: [IPv6Address(x) for x in x.split()],[]),
 ]
 
@@ -216,9 +219,18 @@ def parse_env(env=None, environ=os.environ):
         elif default: val, = default
         else: val = None
         if var is not None: env[var] = val
+
+    # IPv4 network is the combination of the network address (e.g. 192.168.0.0) and the netmask (e.g. 255.255.0.0)
     if env.network:
-        env.network = env.network.supernet(new_prefix=env.netmasklen)
+        env.network = IPv4Network(env.network).supernet(new_prefix=env.netmasklen)
         assert env.network.netmask==env.netmask
+
+    # IPv6 network is determined by the netmask only
+    # (e.g. /16 supplied as part of the address, or ffff:ffff:ffff:ffff:: supplied as separate netmask)
+    if env.myaddr6:
+        env.network6 = env.netmask6.network if env.netmask6 else env.myaddr6.network
+        env.myaddr6 = env.myaddr6.ip
+
     return env
 
 # Parse command-line arguments
@@ -256,7 +268,8 @@ def parse_args(env, args=None):
             host, ip = x
             args.aliases.setdefault(ip, []).append(host)
     if args.route_internal:
-        args.subnets.append(env.network)
+        if env.network: args.subnets.append(env.network)
+        if env.network6: args.subnets.append(env.network6)
     return p, args
 
 def main():
@@ -282,8 +295,14 @@ def main():
 
     find_paths() # find paths of utilities used
 
-    if env.myaddr6 or env.netmask6 or env.dns6:
-        print('WARNING: IPv6 variables set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+    if env.myaddr6 or env.netmask6:
+        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
+    if env.dns6:
+        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_SPLIT_') for v in os.environ):
+        print('WARNING: CISCO_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
+        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
 
     if env.reason==reasons.pre_init:
         do_pre_init(env, args)
