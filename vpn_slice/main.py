@@ -141,7 +141,7 @@ def do_post_connect(env, args):
         if args.verbose:
             print("Doing reverse lookup for %d nameservers..." % len(nsl), file=stderr)
         for ip in nsl:
-            host = dig(ip, env.dns, args.domain, reverse=True)
+            host = dig(env.myaddr, ip, env.dns, args.domain, reverse=True)
             if host is None:
                 print("WARNING: Reverse lookup for %s on VPN DNS servers failed." % ip, file=stderr)
             else:
@@ -153,7 +153,7 @@ def do_post_connect(env, args):
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
     for host in args.hosts:
-        ip = dig(host, env.dns, args.domain)
+        ip = dig(env.myaddr, host, env.dns, args.domain)
         if ip is None:
             print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
         else:
