@@ -299,6 +299,10 @@ def main():
         print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
     if env.dns6:
         print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_SPLIT_') for v in os.environ):
+        print('WARNING: CISCO_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
+        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
 
     if env.reason==reasons.pre_init:
         do_pre_init(env, args)

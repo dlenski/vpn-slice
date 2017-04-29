@@ -117,5 +117,6 @@ GPLv3 or later.
 ## TODO
 
 * Fix timing issues
-* IPv6 support?
+* Improve IPv6 support
 * Support OSes other than Linux?
+* Handle `CISCO_SPLIT_*` environment variables.
