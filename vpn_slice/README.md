@@ -75,8 +75,8 @@ For example:
         -s 'vpn-slice 192.168.1.0/24 hostname1 alias2=192.168.1.43'
     $ cat /etc/hosts
     ...
-    192.168.1.1 dnsmain00 dnsmain00.bigcorp.com			# vpn-slice-tun0 AUTOCREATED
-    192.168.1.2 dnsbackup2 dnsmain2.bigcorp.com			# vpn-slice-tun0 AUTOCREATED
+    192.168.1.1 dns0.tun0					# vpn-slice-tun0 AUTOCREATED
+    192.168.1.2 dns1.tun0					# vpn-slice-tun0 AUTOCREATED
     192.168.1.57 hostname1 hostname1.bigcorp.com		# vpn-slice-tun0 AUTOCREATED
     192.168.1.43 alias2		# vpn-slice-tun0 AUTOCREATED
 

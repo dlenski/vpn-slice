@@ -139,19 +139,15 @@ def do_post_connect(env, args):
     ip_routes = set()
     host_map = []
 
-    if args.ns_lookup:
-        nsl = env.dns + (env.nbns if args.nbns else [])
+    if args.ns_hosts:
+        ns_names = [ (ip, ('dns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.dns) ]
+        if args.nbns:
+            ns_names += [ (ip, ('nbns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.nbns) ]
+        host_map += ns_names
         if args.verbose:
-            print("Doing reverse lookup for %d nameservers..." % len(nsl), file=stderr)
-        for ip in nsl:
-            host = dig(env.myaddr, ip, env.dns, args.domain, reverse=True)
-            if host is None:
-                print("WARNING: Reverse lookup for %s on VPN DNS servers failed." % ip, file=stderr)
-            else:
-                names = names_for(host, args.domain, args.short_names)
-                if args.verbose:
-                    print("  %s = %s" % (ip, ', '.join(names)))
-                host_map.append((ip, names))
+            print("Adding /etc/hosts entries for %d nameservers..." % len(ns_names), file=stderr)
+            for ip, name in ns_names:
+                print("  %s = %s" % (ip, name))
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
@@ -248,7 +244,8 @@ def parse_args(env, args=None):
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP4_NETADDR/$INTERNAL_IP4_NETMASKLEN)")
     g.add_argument('--no-host-names', action='store_false', dest='host_names', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
-    g.add_argument('--no-ns-lookup', action='store_false', dest='ns_lookup', default=True, help='Do not lookup nameservers or add them to /etc/hosts')
+    g = p.add_argument_group('Nameserver options')
+    g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g = p.add_argument_group('Debugging options')
     g.add_argument('-v','--verbose', action='store_true', help="Explain what %(prog)s is doing")
