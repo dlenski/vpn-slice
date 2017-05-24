@@ -1,6 +1,7 @@
 import os, fcntl
 import subprocess as sp
 from shutil import which
+from ipaddress import ip_address
 
 def find_paths():
     global DIG, IPROUTE, HOSTS, IPTABLES
@@ -55,6 +56,11 @@ def dig(bind, host, dns, domain=None, reverse=False):
         out = out[-1].rstrip('\n.')
         if reverse and out.split('.',1)[-1]==domain:
             out = out.split('.',1)[0]
+        if not reverse:
+            try:
+                out = ip_address(out)
+            except ValueError:
+                return None     # didn't return an IP address!
         return out
     else:
         return None
