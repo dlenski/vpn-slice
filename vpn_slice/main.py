@@ -10,6 +10,7 @@ from enum import Enum
 from itertools import chain
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
 
+from .version import __version__
 if os.uname().sysname=='Linux':
     from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables, find_paths
 else:
@@ -251,6 +252,7 @@ def parse_args(env, args=None):
     g.add_argument('-v','--verbose', action='store_true', help="Explain what %(prog)s is doing")
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
+    p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     args = p.parse_args(args, slurpy())
 
     args.subnets = []
