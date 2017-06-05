@@ -153,16 +153,16 @@ def do_post_connect(env, args):
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
     for host in args.hosts:
-        ip = dig(env.myaddr, host, env.dns, args.domain)
-        if ip is None:
+        ips = dig(env.myaddr, host, env.dns, args.domain)
+        if ips is None:
             print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
         else:
             if args.verbose:
-                print("  %s = %s" % (host, ip), file=stderr)
-            ip_routes.add(ip)
+                print("  %s = %s" % (host, ips), file=stderr)
+            ip_routes.update(ips)
             if args.host_names:
                 names = names_for(host, args.domain, args.short_names)
-                host_map.append((ip, names))
+                host_map.extend((ip, names) for ip in ips)
     for ip, aliases in args.aliases.items():
         host_map.append((ip, aliases))
 
@@ -178,7 +178,7 @@ def do_post_connect(env, args):
     else:
         iproute('route', 'flush', 'cache')
         if args.verbose:
-            print("Added routes for %d named hosts." % len(ip_routes), file=stderr)
+            print("Added %d routes for named hosts." % len(ip_routes), file=stderr)
 
 ########################################
 

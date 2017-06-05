@@ -51,19 +51,20 @@ def dig(bind, host, dns, domain=None, reverse=False):
     cl = [DIG,'+short']+(['-b'+str(bind)] if bind else [])+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
     #print cl
     p = sp.Popen(cl, stdout=sp.PIPE)
-    out = [l.strip() for l in p.communicate()[0].decode().splitlines()]
-    if out and p.wait()==0:
-        out = out[-1].rstrip('\n.')
-        if reverse and out.split('.',1)[-1]==domain:
-            out = out.split('.',1)[0]
-        if not reverse:
-            try:
-                out = ip_address(out)
-            except ValueError:
-                return None     # didn't return an IP address!
-        return out
-    else:
-        return None
+    lines = [l.strip() for l in p.communicate()[0].decode().splitlines()]
+    out = []
+    if lines and p.wait()==0:
+        for line in lines:
+            line = line.rstrip('\n.')
+            if reverse:
+                n, d = line.split('.',1)
+                out.append(n if d==domain else line)
+            else:
+                try:
+                    out.append(ip_address(line))
+                except ValueError:
+                    pass     # didn't return an IP address!
+    return out or None
 
 def iproute(*args):
     global IPROUTE
