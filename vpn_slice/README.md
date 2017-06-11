@@ -7,6 +7,7 @@ Table of Contents
     * [Requirements](#requirements)
     * [Usage](#usage)
   * [Inspiration](#inspiration)
+  * [Alternatives](#alternatives)
   * [License](#license)
     * [TODO](#todo)
 
@@ -110,6 +111,8 @@ basics of how to set up a split-tunnel VPN by wrapping the standard `vpnc-script
 `--auto-hosts` and `--seed-hosts` options. These inspired the
 automatic host lookup feature.
 
+# Alternatives
+[**@cernekee**](https://github.com/cernekee/ocproxy)'s ocproxy is also a great alternative
 # License
 
 GPLv3 or later.
