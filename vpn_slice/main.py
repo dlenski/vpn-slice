@@ -315,8 +315,6 @@ def main():
         if env.splitexc:
             print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
-    find_paths() # find paths of utilities used
-
     if env.myaddr6 or env.netmask6:
         print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
     if env.dns6:
@@ -325,6 +323,8 @@ def main():
         print('WARNING: CISCO_SPLIT_EXC_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
     if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
         print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
+
+    find_paths() # find paths of utilities used
 
     if env.reason==reasons.pre_init:
         do_pre_init(env, args)
