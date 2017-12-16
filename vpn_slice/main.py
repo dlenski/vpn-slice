@@ -330,6 +330,9 @@ def main():
         do_pre_init(env, args)
     elif env.reason==reasons.disconnect:
         do_disconnect(env, args)
+    elif env.reason==reasons.reconnect:
+        if args.verbose:
+            print('WARNING: %s ignores reason=reconnect' % p.prog, file=stderr)
     elif env.reason==reasons.connect:
         do_connect(env, args)
 
