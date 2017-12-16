@@ -119,4 +119,4 @@ GPLv3 or later.
 * Fix timing issues
 * Improve IPv6 support
 * Support OSes other than Linux?
-* Handle `CISCO_SPLIT_*` environment variables.
+* Handle [split-excludes](https://en.wikipedia.org/wiki/Split_tunneling) in addition to split-includes.

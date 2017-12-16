@@ -201,6 +201,10 @@ vpncenv = [
     ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Interface), # x:y::z or x:y::z/p
     ('netmask6','INTERNAL_IP6_NETMASK',IPv6Interface), # x:y:z:: or x:y::z/p
     ('dns6','INTERNAL_IP6_DNS',lambda x: [IPv6Address(x) for x in x.split()],[]),
+    ('nsplitinc','CISCO_SPLIT_INC',int,0),
+    ('nsplitexc','CISCO_SPLIT_EXC',int,0),
+    ('nsplitinc6','CISCO_IPV6_SPLIT_INC',int,0),
+    ('nsplitexc6','CISCO_IPV6_SPLIT_EXC',int,0),
 ]
 
 def parse_env(env=None, environ=os.environ):
@@ -228,6 +232,18 @@ def parse_env(env=None, environ=os.environ):
         env.network6 = env.netmask6.network if env.netmask6 else env.myaddr6.network
         env.myaddr6 = env.myaddr6.ip
 
+    # Handle splits
+    env.splitinc = []
+    env.splitexc = []
+    for pfx, n in chain((('INC', n) for n in range(env.nsplitinc)),
+                        (('EXC', n) for n in range(env.nsplitexc))):
+        ad = IPv4Address(environ['CISCO_SPLIT_%s_%d_ADDR' % (pfx, n)])
+        nm = IPv4Address(environ['CISCO_SPLIT_%s_%d_MASK' % (pfx, n)])
+        nml = int(environ['CISCO_SPLIT_%s_%d_MASKLEN' % (pfx, n)])
+        net = IPv4Network(ad).supernet(new_prefix=nml)
+        assert net.netmask==nm
+        env['split'+pfx.lower()].append(net)
+
     return env
 
 # Parse command-line arguments
@@ -243,6 +259,7 @@ def parse_args(env, args=None):
     g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
     g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP*_NET*")
+    g.add_argument('-S','--route-splits', action='store_true', help="Add route for VPN's split-tunnel subnets (passed in via $CISCO_SPLIT_*)")
     g.add_argument('--no-host-names', action='store_false', dest='host_names', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
     g = p.add_argument_group('Nameserver options')
@@ -269,6 +286,8 @@ def parse_args(env, args=None):
     if args.route_internal:
         if env.network: args.subnets.append(env.network)
         if env.network6: args.subnets.append(env.network6)
+    if args.route_splits:
+        args.subnets.extend(env.splitinc)
     return p, args
 
 def main():
@@ -291,6 +310,10 @@ def main():
             if envar in os.environ:
                 pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
                 print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
+        if env.splitinc:
+            print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
+        if env.splitexc:
+            print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
     find_paths() # find paths of utilities used
 
@@ -298,8 +321,8 @@ def main():
         print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
     if env.dns6:
         print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-    if any(v.startswith('CISCO_SPLIT_') for v in os.environ):
-        print('WARNING: CISCO_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_SPLIT_EXC_') for v in os.environ):
+        print('WARNING: CISCO_SPLIT_EXC_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
     if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
         print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
 
