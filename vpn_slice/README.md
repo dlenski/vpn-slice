@@ -82,9 +82,16 @@ For example:
 
 or
 
-    # With vpnc, you *must* specify an absolute path for the disconnect hook
-    # to work correctly, due to a bug which I reported:
+    # With most versions of vpnc, you *must* specify an absolute path
+    # for the disconnect hook to work correctly, due to a bug.
+    #
+    # I reported this bug, but the original maintainers no longer maintain vpnc.
     #   http://lists.unix-ag.uni-kl.de/pipermail/vpnc-devel/2016-August/004199.html
+    #
+    # However, some Linux distro packagers have picked up my patch in recent
+    # releases, e.g. Ubuntu 17.04:
+    #   http://changelogs.ubuntu.com/changelogs/pool/universe/v/vpnc/vpnc_0.5.3r550-3/changelog
+    #
     $ sudo vpnc config_file \
            --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 alias2=192.168.1.43'
 
