@@ -242,7 +242,7 @@ def parse_args(env, args=None):
     g.add_argument('-i','--incoming', action='store_true', help='Allow incoming traffic from VPN (default is to block)')
     g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
     g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
-    g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP4_NETADDR/$INTERNAL_IP4_NETMASKLEN)")
+    g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP*_NET*")
     g.add_argument('--no-host-names', action='store_false', dest='host_names', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
     g = p.add_argument_group('Nameserver options')
