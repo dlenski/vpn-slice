@@ -241,7 +241,8 @@ def parse_env(env=None, environ=os.environ):
         nm = IPv4Address(environ['CISCO_SPLIT_%s_%d_MASK' % (pfx, n)])
         nml = int(environ['CISCO_SPLIT_%s_%d_MASKLEN' % (pfx, n)])
         net = IPv4Network(ad).supernet(new_prefix=nml)
-        assert net.netmask==nm
+        if net.netmask!=nm:
+            raise AssertionError("Netmask supplied in CISCO_SPLIT_%s_%d_MASK (%s) does not match the %d-bit prefix (_MASKLEN) of the network address %s (_ADDR)\n\t%s != %s" % (pfx, n, nm, nml, ad, nm, net.netmask))
         env['split'+pfx.lower()].append(net)
 
     return env
