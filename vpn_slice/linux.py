@@ -48,7 +48,7 @@ def write_hosts(host_map, tag):
 def dig(bind, host, dns, domain=None, reverse=False):
     global DIG
     host, dns = str(host), map(str, dns)
-    cl = [DIG,'+short']+(['-b'+str(bind)] if bind else [])+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
+    cl = [DIG,'+short','+noedns']+(['-b'+str(bind)] if bind else [])+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
     #print cl
     p = sp.Popen(cl, stdout=sp.PIPE)
     lines = [l.strip() for l in p.communicate()[0].decode().splitlines()]
