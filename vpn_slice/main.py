@@ -147,8 +147,8 @@ def do_post_connect(env, args):
         host_map += ns_names
         if args.verbose:
             print("Adding /etc/hosts entries for %d nameservers..." % len(ns_names), file=stderr)
-            for ip, name in ns_names:
-                print("  %s = %s" % (ip, name))
+            for ip, names in ns_names:
+                print("  %s = %s" % (ip, ', '.join(map(str, names))))
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
@@ -158,7 +158,7 @@ def do_post_connect(env, args):
             print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
         else:
             if args.verbose:
-                print("  %s = %s" % (host, ips), file=stderr)
+                print("  %s = %s" % (host, ', '.join(map(str, ips))), file=stderr)
             ip_routes.update(ips)
             if args.host_names:
                 names = names_for(host, args.domain, args.short_names)
