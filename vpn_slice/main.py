@@ -189,7 +189,7 @@ vpncenv = [
     ('reason','reason',lambda x: reasons[x.replace('-','_')]),
     ('gateway','VPNGATEWAY',ip_address),
     ('tundev','TUNDEV',str),
-    ('domain','CISCO_DEF_DOMAIN',str),
+    ('domain','CISCO_DEF_DOMAIN',str), # lambda x: x.split()),
     ('banner','CISCO_BANNER',str),
     ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address), # a.b.c.d
     ('mtu','INTERNAL_IP4_MTU',int),

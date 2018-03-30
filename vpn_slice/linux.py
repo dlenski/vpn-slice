@@ -84,7 +84,7 @@ def iproute(*args):
         sp.check_call(cl)
     else:
         w = sp.check_output(cl).decode().split()
-        return {w[ii]:w[ii+1] for ii in range(start, len(w), 2) if w[ii] in keys}
+        return {w[ii]:w[ii+1] for ii in range(start, len(w), len(w)-1) if w[ii] in keys}
 
 def iptables(*args):
     global IPTABLES
