@@ -28,8 +28,9 @@ class slurpy(dict):
 
 def net_or_host_param(s):
     if '=' in s:
-        host, ip = s.split('=', 1)
-        return host, ip_address(ip)
+        hosts = s.split('=')
+        ip = hosts.pop()
+        return hosts, ip_address(ip)
     else:
         try:
             return ip_network(s)
@@ -282,8 +283,8 @@ def parse_args(env, args=None):
         elif isinstance(x, str):
             args.hosts.append(x)
         else:
-            host, ip = x
-            args.aliases.setdefault(ip, []).append(host)
+            hosts, ip = x
+            args.aliases.setdefault(ip, []).extend(hosts)
     if args.route_internal:
         if env.network: args.subnets.append(env.network)
         if env.network6: args.subnets.append(env.network6)
