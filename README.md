@@ -73,13 +73,13 @@ For example:
 
 ```sh
 $ sudo openconnect gateway.bigcorp.com -u user1234 \
-    -s 'vpn-slice 192.168.1.0/24 hostname1 alias2=192.168.1.43'
+    -s 'vpn-slice 192.168.1.0/24 hostname1 alias2=alias2.bigcorp.com=192.168.1.43'
 $ cat /etc/hosts
 ...
 192.168.1.1 dns0.tun0					# vpn-slice-tun0 AUTOCREATED
 192.168.1.2 dns1.tun0					# vpn-slice-tun0 AUTOCREATED
 192.168.1.57 hostname1 hostname1.bigcorp.com		# vpn-slice-tun0 AUTOCREATED
-192.168.1.43 alias2		# vpn-slice-tun0 AUTOCREATED
+192.168.1.43 alias2 alias2.bigcorp.com		# vpn-slice-tun0 AUTOCREATED
 ```
 
 or
@@ -96,13 +96,14 @@ or
 #   http://changelogs.ubuntu.com/changelogs/pool/universe/v/vpnc/vpnc_0.5.3r550-3/changelog
 #
 $ sudo vpnc config_file \
-       --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 alias2=192.168.1.43'
+       --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 alias2=alias2.bigcorp.com=192.168.1.43'
 ```
 
 Notice that `vpn-slice` accepts both *hostnames alone* (`hostname1`) as well as
-*host-to-IP* aliases (`alias2=192.168.1.43`). The former are first looked up using the
+host-to-IP* aliases (`alias2=alias2.bigcorp.com=192.168.1.43`). The former are first looked up using the
 VPN's DNS servers. Both are also added to the routing table, as well as to
-`/etc/hosts` (unless `--no-host-names` is specified).
+`/etc/hosts` (unless `--no-host-names` is specified). As in this
+example, multiple aliases can be specified for a single IP address.
 
 There are many command-line options to alter the behavior of
 `vpn-slice`; try `vpn-slice --help` to show them all.
