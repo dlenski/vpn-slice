@@ -2,4 +2,3 @@
 *~
 *.egg-info
 *.orig
-vpn_slice/version.py
