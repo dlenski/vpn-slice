@@ -149,7 +149,7 @@ def do_post_connect(env, args):
         if args.verbose:
             print("Adding /etc/hosts entries for %d nameservers..." % len(ns_names), file=stderr)
             for ip, names in ns_names:
-                print("  %s = %s" % (ip, ', '.join(map(str, names))))
+                print("  %s = %s" % (ip, ', '.join(map(str, names))), file=stderr)
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
