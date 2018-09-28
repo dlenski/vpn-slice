@@ -38,17 +38,18 @@ def net_or_host_param(s):
             return s
 
 
-def names_for(host, domain, short=True, long=True):
+def names_for(host, domains, short=True, long=True):
     if '.' in host: first, rest = host.split('.', 1)
     else: first, rest = host, None
+    if isinstance(domains, str): domains = (domains,)
 
     names = []
     if long:
         if rest: names.append(host)
-        elif domain: names.append(host+'.'+domain)
+        elif domains: names.append(host+'.'+domains[0])
     if short:
         if not rest: names.append(host)
-        elif rest==domain: names.append(first)
+        elif rest in domains: names.append(first)
     return names
 
 ########################################
@@ -190,7 +191,7 @@ vpncenv = [
     ('reason','reason',lambda x: reasons[x.replace('-','_')]),
     ('gateway','VPNGATEWAY',ip_address),
     ('tundev','TUNDEV',str),
-    ('domain','CISCO_DEF_DOMAIN',str),
+    ('domain','CISCO_DEF_DOMAIN',lambda x: x.split()),
     ('banner','CISCO_BANNER',str),
     ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address), # a.b.c.d
     ('mtu','INTERNAL_IP4_MTU',int),
@@ -259,7 +260,7 @@ def parse_args(env, args=None):
     g = p.add_argument_group('Routing and hostname options')
     g.add_argument('-i','--incoming', action='store_true', help='Allow incoming traffic from VPN (default is to block)')
     g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
-    g.add_argument('-d','--domain', default=env.domain, help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
+    g.add_argument('-d','--domain', action='append', help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP*_NET*")
     g.add_argument('-S','--route-splits', action='store_true', help="Add route for VPN's split-tunnel subnets (passed in via $CISCO_SPLIT_*)")
     g.add_argument('--no-host-names', action='store_false', dest='host_names', default=True, help='Do not add either short or long hostnames to /etc/hosts')
@@ -273,6 +274,11 @@ def parse_args(env, args=None):
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     args = p.parse_args(args, slurpy())
+
+    # use the list from the env if --domain wasn't specified, but start with an
+    # empty list if it was specified; hence can't use 'default' here:
+    if args.domain is None:
+        args.domain = env.domain
 
     args.subnets = []
     args.hosts = []

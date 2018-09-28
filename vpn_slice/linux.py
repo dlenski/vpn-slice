@@ -45,25 +45,35 @@ def write_hosts(host_map, tag):
         hostf.truncate()
     return len(host_map) or len(lines)-len(keeplines)
 
-def dig(bind, host, dns, domain=None, reverse=False):
+def dig(bind, host, dns, domains=None, reverse=False):
     global DIG
     host, dns = str(host), map(str, dns)
-    cl = [DIG,'+short','+noedns']+(['-b'+str(bind)] if bind else [])+['@'+s for s in dns]+(['+domain='+domain] if domain else [])+(['-x'] if reverse else [])+[host]
-    #print cl
-    p = sp.Popen(cl, stdout=sp.PIPE)
-    lines = [l.strip() for l in p.communicate()[0].decode().splitlines()]
-    out = []
-    if lines and p.wait()==0:
-        for line in lines:
-            line = line.rstrip('\n.')
-            if reverse:
-                n, d = line.split('.',1)
-                out.append(n if d==domain else line)
-            else:
-                try:
-                    out.append(ip_address(line))
-                except ValueError:
-                    pass     # didn't return an IP address!
+    basecl = [DIG,'+short','+noedns']+(['-b'+str(bind)] if bind else [])+['@'+s for s in dns]
+    if reverse:
+        extras = (['-x'],)
+    if domains is None:
+        extras = ([],)
+    elif isinstance(domains, str):
+        extras = (['+domain=' + d],)
+    else:
+        extras = (['+domain=' + d] for d in domains)
+
+    out = set()
+    for extra in extras:
+        #print cl
+        p = sp.Popen(basecl + extra + [host], stdout=sp.PIPE)
+        lines = [l.strip() for l in p.communicate()[0].decode().splitlines()]
+        if lines and p.wait()==0:
+            for line in lines:
+                line = line.rstrip('\n.')
+                if reverse:
+                    n, d = line.split('.',1)
+                    out.add(n if d in domains else line)
+                else:
+                    try:
+                        out.add(ip_address(line))
+                    except ValueError:
+                        pass     # didn't return an IP address!
     return out or None
 
 def iproute(*args):
