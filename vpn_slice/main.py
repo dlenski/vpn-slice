@@ -24,6 +24,17 @@ def get_default_providers():
             'dns': DigProvider(),
             'hosts': PosixHostsFileProvider(),
         }
+    elif platform.startswith('darwin'):
+        from .mac import PsProvider, BSDRouteProvider
+        from .generic import NoFirewallProvider
+        from .posix import DigProvider, PosixHostsFileProvider
+        return {
+            'process': PsProvider(),
+            'route': BSDRouteProvider(),
+            'firewall': NoFirewallProvider(),
+            'dns': DigProvider(),
+            'hosts': PosixHostsFileProvider(),
+        }
     else:
         raise OSError('Your platform, {}, is unsupported'.format(platform))
 
