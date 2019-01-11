@@ -133,4 +133,4 @@ GPLv3 or later.
 * Fix timing issues
 * Improve IPv6 support
 * Support OSes other than Linux?
-* Handle [split-excludes](https://en.wikipedia.org/wiki/Split_tunneling) in addition to split-includes.
+* Mechanism for specifying split-_exclude_ subnets on the command line

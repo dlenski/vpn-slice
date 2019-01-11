@@ -127,6 +127,9 @@ def do_connect(env, args):
     if env.myaddr6:
         iproute('addr', 'add', env.myaddr6, 'dev', env.tundev)
 
+    # save routes for excluded subnets
+    exc_subnets = [(dest, iproute('route', 'get', dest)) for dest in args.exc_subnets]
+
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + (env.nbns if args.nbns else [])
     for dest in chain(ns, args.subnets, args.aliases):
@@ -135,6 +138,14 @@ def do_connect(env, args):
         iproute('route', 'flush', 'cache')
         if args.verbose:
             print("Added routes for %d nameservers, %d subnets, %d aliases." % (len(ns), len(args.subnets), len(args.aliases)), file=stderr)
+
+    # restore routes to excluded subnets
+    for dest, exc_route in exc_subnets:
+        iproute('route', 'replace', dest, exc_route)
+    else:
+        iproute('route', 'flush', 'cache')
+        if args.verbose:
+            print("Restored routes for %d excluded subnets." % len(exc_subnets), file=stderr)
 
 def do_post_connect(env, args):
     # lookup named hosts for which we need routes and/or host_map entries
@@ -281,6 +292,7 @@ def parse_args(env, args=None):
         args.domain = env.domain
 
     args.subnets = []
+    args.exc_subnets = []
     args.hosts = []
     args.aliases = {}
     for x in args.routes:
@@ -296,6 +308,7 @@ def parse_args(env, args=None):
         if env.network6: args.subnets.append(env.network6)
     if args.route_splits:
         args.subnets.extend(env.splitinc)
+        args.exc_subnets.extend(env.splitexc)
     return p, args
 
 def main():
@@ -327,8 +340,6 @@ def main():
         print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
     if env.dns6:
         print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-    if any(v.startswith('CISCO_SPLIT_EXC_') for v in os.environ):
-        print('WARNING: CISCO_SPLIT_EXC_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
     if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
         print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
 
