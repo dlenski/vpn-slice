@@ -1,5 +1,6 @@
 import re
 import subprocess
+from ipaddress import ip_network
 
 from .provider import ProcessProvider, RouteProvider
 from .util import get_executable
@@ -92,4 +93,8 @@ class BSDRouteProvider(RouteProvider):
         self._ifconfig(*args)
 
     def add_address(self, device, address):
-        self._ifconfig(device, address, address)
+        if address.version == 6:
+            family = 'inet6'
+        else:
+            family = 'inet'
+        self._ifconfig(device, family, ip_network(address), address)
