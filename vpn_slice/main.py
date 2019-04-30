@@ -197,7 +197,7 @@ def do_post_connect(env, args):
 
 # Translate environment variables which may be passed by our caller
 # into a more Pythonic form (these are take from vpnc-script)
-reasons = Enum('reasons', 'pre_init connect disconnect reconnect')
+reasons = Enum('reasons', 'pre_init connect disconnect reconnect attempt_reconnect')
 vpncenv = [
     ('reason','reason',lambda x: reasons[x.replace('-','_')]),
     ('gateway','VPNGATEWAY',ip_address),
