@@ -23,33 +23,40 @@ class Iproute2Provider(RouteProvider):
     def __init__(self):
         self.iproute = get_executable('/sbin/ip')
 
-    def _iproute(self, *args, output_start=None, **kwargs):
+    def _iproute(self, *args, **kwargs):
         cl = [self.iproute]
         cl.extend(str(v) for v in args if v is not None)
         for k, v in kwargs.items():
             if v is not None:
                 cl.extend((k, str(v)))
 
+        if args[:2]==('route','get'):
+            output_start, keys = 1, ('via', 'dev', 'src', 'mtu')
+        elif args[:2]==('link','show'):
+            output_start, keys = 3, ('state', 'mtu')
+        else:
+            output_start = None
+
         if output_start is not None:
             words = subprocess.check_output(cl).decode().split()
-            return {words[i]: words[i + 1] for i in range(output_start, len(words), 2)}
+            return {words[i]: words[i + 1] for i in range(output_start, len(words), 2) if words[i] in keys}
         else:
             subprocess.check_call(cl)
 
     def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
-        self._iproute('route', 'add', via=via, dev=dev, src=src, mtu=mtu)
+        self._iproute('route', 'add', destination, via=via, dev=dev, src=src, mtu=mtu)
 
     def remove_route(self, destination):
         self._iproute('route', 'del', destination)
 
     def get_route(self, destination):
-        return self._iproute('route', 'get', destination, output_start=1)
+        return self._iproute('route', 'get', destination)
 
     def flush_cache(self):
         self._iproute('route', 'flush', 'cache')
 
     def get_link_info(self, device):
-        return self._iproute('link', 'show', device, start_output=3)
+        return self._iproute('link', 'show', device)
 
     def set_link_info(self, device, state, mtu=None):
         self._iproute('link', 'set', state, dev=device, mtu=mtu)
