@@ -11,9 +11,7 @@ class DigProvider(DNSProvider):
     def __init__(self):
         self.dig = get_executable('/usr/bin/dig')
 
-    def lookup_host(
-        self, hostname, dns_servers, *, bind_address=None, search_domains=()
-    ):
+    def lookup_host(self, hostname, dns_servers, *, bind_address=None, search_domains=()):
         cl = [self.dig, '+short', '+noedns']
         if bind_address:
             cl.extend(('-b', str(bind_address)))

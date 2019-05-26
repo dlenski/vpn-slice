@@ -91,9 +91,7 @@ class FirewallProvider(metaclass=ABCMeta):
 
 class DNSProvider(metaclass=ABCMeta):
     @abstractmethod
-    def lookup_host(
-        self, hostname, dns_servers, *, bind_address=None, search_domains=()
-    ):
+    def lookup_host(self, hostname, dns_servers, *, bind_address=None, search_domains=()):
         """Look up the address of a host."""
 
 
