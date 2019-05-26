@@ -1,4 +1,4 @@
-from .provider import FirewallProvider
+from .provider import FirewallProvider, TunnelPrepProvider
 
 
 class NoFirewallProvider(FirewallProvider):
@@ -9,6 +9,6 @@ class NoFirewallProvider(FirewallProvider):
         pass
 
 
-class NoTunnelCheckProvider(FirewallProvider):
+class NoTunnelPrepProvider(TunnelPrepProvider):
     def prepare_tunnel(self):
         pass
