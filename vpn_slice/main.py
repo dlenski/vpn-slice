@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import print_function
-from sys import stderr, argv
-import signal
-from collections import OrderedDict
+from sys import stderr, platform
 import os, subprocess as sp
 import argparse
 from enum import Enum
@@ -11,20 +9,36 @@ from itertools import chain
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
 
 from .version import __version__
-if os.uname().sysname=='Linux':
-    from .linux import pid2exe, ppidof, check_tun, write_hosts, dig, iproute, iptables, find_paths
-else:
-    raise OSError('non-Linux operating system is unsupported')
+from .util import slurpy
 
-# Quacks like a dict and an object
-class slurpy(dict):
-    def __getattr__(self, k):
-        try:
-            return self[k]
-        except KeyError as e:
-            raise AttributeError(*e.args)
-    def __setattr__(self, k, v):
-        self[k]=v
+
+def get_default_providers():
+    if platform.startswith('linux'):
+        from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
+        from .posix import DigProvider, PosixHostsFileProvider
+        return {
+            'process': ProcfsProvider(),
+            'route': Iproute2Provider(),
+            'firewall': IptablesProvider(),
+            'dns': DigProvider(),
+            'hosts': PosixHostsFileProvider(),
+            'prep': CheckTunDevProvider(),
+        }
+    elif platform.startswith('darwin'):
+        from .mac import PsProvider, BSDRouteProvider
+        from .generic import NoFirewallProvider, NoTunnelPrepProvider
+        from .posix import DigProvider, PosixHostsFileProvider
+        return {
+            'process': PsProvider(),
+            'route': BSDRouteProvider(),
+            'firewall': NoFirewallProvider(),
+            'dns': DigProvider(),
+            'hosts': PosixHostsFileProvider(),
+            'prep': NoTunnelPrepProvider(),
+        }
+    else:
+        raise OSError('Your platform, {}, is unsupported'.format(platform))
+
 
 def net_or_host_param(s):
     if '=' in s:
@@ -54,100 +68,105 @@ def names_for(host, domains, short=True, long=True):
 
 ########################################
 
-def do_pre_init(env, args):
-    check_tun()
+def do_pre_init(env, args, providers):
+    providers['prep'].prepare_tunnel()
 
-def do_disconnect(env, args):
+def do_disconnect(env, args, providers):
     for pidfile in args.kill:
         try:
             pid = int(open(pidfile).read())
-            os.kill(pid, signal.SIGTERM)
-            if args.verbose:
-                print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
-        except (IOError, ValueError, OSError):
-            pass
+        except (IOError, ValueError):
+            print("WARNING: could not read pid from %s" % pidfile, file=stderr)
+        else:
+            try: providers['process'].kill(pid)
+            except OSError as e:
+                print("WARNING: could not kill pid %d from %s: %s" % (pid, pidfile, str(e)), file=stderr)
+            else:
+                if args.verbose:
+                    print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
 
-    removed = write_hosts({}, 'vpn-slice-%s AUTOCREATED' % args.name)
+    removed = providers['hosts'].write_hosts({}, args.name)
     if args.verbose:
         print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
 
     # delete explicit route to gateway
     try:
-        iproute('route', 'del', env.gateway)
+        providers['route'].remove_route(env.gateway)
     except sp.CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
     # remove iptables rules for incoming traffic
     if not args.incoming:
         try:
-            iptables('-D','INPUT','-i',env.tundev,'-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT')
-            iptables('-D','INPUT','-i',env.tundev,'-j','DROP')
+            providers['firewall'].deconfigure_firewall(env.tundev)
         except sp.CalledProcessError:
             print("WARNING: failed to remove iptables rules for VPN interface (%s); check iptables -S" % env.tundev, file=stderr)
 
-def do_connect(env, args):
+def do_connect(env, args, providers):
     if args.banner and env.banner:
         print("Connect Banner:")
         for l in env.banner.splitlines(): print("| "+l)
 
     # set explicit route to gateway
-    gwr = iproute('route', 'get', env.gateway)
-    iproute('route', 'replace', env.gateway, gwr)
+    gwr = providers['route'].get_route(env.gateway)
+    providers['route'].replace_route(
+        env.gateway, **{k: gwr.get(k) for k in ('via', 'dev', 'src', 'mtu')})
 
     # drop incoming traffic from VPN
     if not args.incoming:
         try:
-            iptables('-A','INPUT','-i',env.tundev,'-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT')
-            try:
-                iptables('-A','INPUT','-i',env.tundev,'-j','DROP')
-            except sp.CalledProcessError:
-                iptables('-D','INPUT','-i',env.tundev,'-m','state','--state','RELATED,ESTABLISHED','-j','ACCEPT')
-                raise
+            providers['firewall'].configure_firewall(env.tundev)
             if args.verbose:
                 print("Blocked incoming traffic from VPN interface with iptables.", file=stderr)
         except sp.CalledProcessError:
+            try:
+                providers['firewall'].deconfigure_firewall(env.tundev)
+            except sp.CalledProcessError:
+                pass
             print("WARNING: failed to block incoming traffic", file=stderr)
 
     # configure MTU
     mtu = env.mtu
     if mtu is None:
         dev = gwr.get('dev')
-        mtudev = dev and iproute('link', 'show', dev).get('mtu')
-        mtu = mtudev and int(mtudev) - 88
+        if dev:
+            dev_mtu = providers['route'].get_link_info(dev).get('mtu')
+            if dev_mtu:
+                mtu = int(dev_mtu) - 88
         if mtu:
             print("WARNING: guessing MTU is %d (the MTU of %s - 88)" % (mtu, dev), file=stderr)
         else:
             mtu = 1412
             print("WARNING: guessing default MTU of %d (couldn't determine MTU of %s)" % (mtu, dev), file=stderr)
-    iproute('link', 'set', 'dev', env.tundev, 'up', 'mtu', mtu)
+    providers['route'].set_link_info(env.tundev, state='up', mtu=mtu)
 
     # set IPv4, IPv6 addresses for tunnel device
     if env.myaddr:
-        iproute('addr', 'add', env.myaddr, 'dev', env.tundev)
+        providers['route'].add_address(env.tundev, env.myaddr)
     if env.myaddr6:
-        iproute('addr', 'add', env.myaddr6, 'dev', env.tundev)
+        providers['route'].add_address(env.tundev, env.myaddr6)
 
     # save routes for excluded subnets
-    exc_subnets = [(dest, iproute('route', 'get', dest)) for dest in args.exc_subnets]
+    exc_subnets = [(dest, providers['route'].get_route(dest)) for dest in args.exc_subnets]
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + (env.nbns if args.nbns else [])
     for dest in chain(ns, args.subnets, args.aliases):
-        iproute('route', 'replace', dest, 'dev', env.tundev)
+        providers['route'].replace_route(dest, dev=env.tundev)
     else:
-        iproute('route', 'flush', 'cache')
+        providers['route'].flush_cache()
         if args.verbose:
             print("Added routes for %d nameservers, %d subnets, %d aliases." % (len(ns), len(args.subnets), len(args.aliases)), file=stderr)
 
     # restore routes to excluded subnets
     for dest, exc_route in exc_subnets:
-        iproute('route', 'replace', dest, exc_route)
+        providers['route'].replace_route(dest, exc_route)
     else:
-        iproute('route', 'flush', 'cache')
+        providers['route'].flush_cache()
         if args.verbose:
             print("Restored routes for %d excluded subnets." % len(exc_subnets), file=stderr)
 
-def do_post_connect(env, args):
+def do_post_connect(env, args, providers):
     # lookup named hosts for which we need routes and/or host_map entries
     # (the DNS/NBNS servers already have their routes)
     ip_routes = set()
@@ -166,7 +185,9 @@ def do_post_connect(env, args):
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
     for host in args.hosts:
-        ips = dig(env.myaddr, host, env.dns, args.domain)
+        ips = providers['dns'].lookup_host(
+                host, dns_servers=env.dns, search_domains=args.domain,
+                bind_address=env.myaddr)
         if ips is None:
             print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
         else:
@@ -181,15 +202,15 @@ def do_post_connect(env, args):
 
     # add them to /etc/hosts
     if host_map:
-        write_hosts(host_map, 'vpn-slice-%s AUTOCREATED' % args.name)
+        providers['hosts'].write_hosts(host_map, args.name)
         if args.verbose:
             print("Added hostnames and aliases for %d addresses to /etc/hosts." % len(host_map), file=stderr)
 
     # add routes to hosts
     for ip in ip_routes:
-        iproute('route', 'replace', ip, 'dev', env.tundev)
+        providers['route'].replace_route(ip, dev=env.tundev)
     else:
-        iproute('route', 'flush', 'cache')
+        providers['route'].flush_cache()
         if args.verbose:
             print("Added %d routes for named hosts." % len(ip_routes), file=stderr)
 
@@ -317,12 +338,14 @@ def main():
     if env.reason is None:
         p.error("Must be called as vpnc-script, with $reason set")
 
+    providers = get_default_providers()
+
     if args.dump:
-        ppid = os.getppid()
-        exe = pid2exe(ppid)
+        ppid = providers['process'].ppid_of(None)
+        exe = providers['process'].pid2exe(ppid)
         if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
-            ppid = ppidof(ppid)
-            exe = pid2exe(ppid)
+            ppid = providers['process'].ppid_of(ppid)
+            exe = providers['process'].pid2exe(ppid)
         caller = '%s (PID %d)'%(exe, ppid) if exe else 'PID %d' % ppid
 
         print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
@@ -343,12 +366,10 @@ def main():
     if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
         print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
 
-    find_paths() # find paths of utilities used
-
     if env.reason==reasons.pre_init:
-        do_pre_init(env, args)
+        do_pre_init(env, args, providers)
     elif env.reason==reasons.disconnect:
-        do_disconnect(env, args)
+        do_disconnect(env, args, providers)
     elif env.reason in (reasons.reconnect, reasons.attempt_reconnect):
         # FIXME: is there anything that reconnect or attempt_reconnect /should/ do
         # on a modern system (Linux) which automatically removes routes to
@@ -362,14 +383,14 @@ def main():
         if args.verbose:
             print('WARNING: %s ignores reason=%s' % (p.prog, env.reason.name), file=stderr)
     elif env.reason==reasons.connect:
-        do_connect(env, args)
+        do_connect(env, args, providers)
 
         # we continue running in a new child process, so the VPN can actually
         # start in the background, because we need to actually send traffic to it
         if args.fork and os.fork():
             raise SystemExit
 
-        do_post_connect(env, args)
+        do_post_connect(env, args, providers)
 
 if __name__=='__main__':
     main()

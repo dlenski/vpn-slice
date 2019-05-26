@@ -1,102 +1,98 @@
-import os, fcntl
-import subprocess as sp
-from shutil import which
-from ipaddress import ip_address
+import os
+import subprocess
+from signal import SIGTERM
 
-def find_paths():
-    global DIG, IPROUTE, HOSTS, IPTABLES
-    DIG = which('dig') or '/usr/bin/dig'
-    IPROUTE = which('ip') or '/sbin/ip'
-    IPTABLES = which('iptables') or '/sbin/iptables'
-    HOSTS = '/etc/hosts'
+from .provider import FirewallProvider, ProcessProvider, RouteProvider, TunnelPrepProvider
+from .util import get_executable
 
-    for binary in (DIG, IPROUTE, IPTABLES):
-        if not os.access(binary, os.X_OK):
-            raise OSError("cannot execute %s" % binary)
-    if not os.access(HOSTS, os.R_OK | os.W_OK):
-        raise OSError("cannot read/write %s" % HOSTS)
 
-def pid2exe(pid):
-    try:
-        return os.readlink('/proc/%d/exe' % pid)
-    except (OSError, IOError):
-        return None
+class ProcfsProvider(ProcessProvider):
+    def pid2exe(self, pid):
+        try:
+            return os.readlink('/proc/%d/exe' % pid)
+        except (OSError, IOError):
+            return None
 
-def ppidof(pid):
-    try:
-        return int(next(open('/proc/%d/stat'%pid)).split()[3])
-    except (OSError, ValueError, IOError):
-        pass
+    def ppid_of(self, pid=None):
+        if pid is None:
+            return os.getppid()
+        try:
+            return int(next(open('/proc/%d/stat' % pid)).split()[3])
+        except (OSError, ValueError, IOError):
+            return None
 
-def check_tun():
-    if not os.access('/dev/net/tun', os.R_OK|os.W_OK):
-        raise OSError("can't read and write /dev/net/tun")
+    def kill(self, pid, signal=SIGTERM):
+        os.kill(pid, signal)
 
-def write_hosts(host_map, tag):
-    global HOSTS
-    with open(HOSTS,'r+') as hostf:
-        fcntl.flock(hostf, fcntl.LOCK_EX) # POSIX only, obviously
-        lines = hostf.readlines()
-        keeplines = [l for l in lines if not l.endswith('# %s\n'%tag)]
-        hostf.seek(0,0)
-        hostf.writelines(keeplines)
-        for ip, names in host_map:
-            print('%s %s\t\t# %s' % (ip, ' '.join(names), tag), file=hostf)
-        hostf.truncate()
-    return len(host_map) or len(lines)-len(keeplines)
 
-def dig(bind, host, dns, domains=None, reverse=False):
-    global DIG
-    host, dns = str(host), map(str, dns)
-    basecl = [DIG,'+short','+noedns']+(['-b'+str(bind)] if bind else [])+['@'+s for s in dns]
-    if reverse:
-        extras = (['-x'],)
-    if domains is None:
-        extras = ([],)
-    elif isinstance(domains, str):
-        extras = (['+domain=' + d],)
-    else:
-        extras = (['+domain=' + d] for d in domains)
+class Iproute2Provider(RouteProvider):
+    def __init__(self):
+        self.iproute = get_executable('/sbin/ip')
 
-    out = set()
-    for extra in extras:
-        #print cl
-        p = sp.Popen(basecl + extra + [host], stdout=sp.PIPE)
-        lines = [l.strip() for l in p.communicate()[0].decode().splitlines()]
-        if lines and p.wait()==0:
-            for line in lines:
-                line = line.rstrip('\n.')
-                if reverse:
-                    n, d = line.split('.',1)
-                    out.add(n if d in domains else line)
-                else:
-                    try:
-                        out.add(ip_address(line))
-                    except ValueError:
-                        pass     # didn't return an IP address!
-    return out or None
+    def _iproute(self, *args, **kwargs):
+        cl = [self.iproute]
+        cl.extend(str(v) for v in args if v is not None)
+        for k, v in kwargs.items():
+            if v is not None:
+                cl.extend((k, str(v)))
 
-def iproute(*args):
-    global IPROUTE
-    cl = [IPROUTE]
-    for arg in args:
-        if isinstance(arg, dict):
-            for k,v in arg.items():
-                cl += [k] if v is None else [k, str(v)]
+        if args[:2]==('route','get'):
+            output_start, keys = 1, ('via', 'dev', 'src', 'mtu')
+        elif args[:2]==('link','show'):
+            output_start, keys = 3, ('state', 'mtu')
         else:
-            cl.append(str(arg))
+            output_start = None
 
-    if args[:2]==('route','get'): get, start, keys = 'route', 1, ('via','dev','src','mtu')
-    elif args[:2]==('link','show'): get, start, keys = 'link', 3, ('mtu','state')
-    else: get = None
+        if output_start is not None:
+            words = subprocess.check_output(cl).decode().split()
+            return {words[i]: words[i + 1] for i in range(output_start, len(words), 2) if words[i] in keys}
+        else:
+            subprocess.check_call(cl)
 
-    if get is None:
-        sp.check_call(cl)
-    else:
-        w = sp.check_output(cl).decode().split()
-        return {w[ii]:w[ii+1] for ii in range(start, len(w), 2) if w[ii] in keys}
+    def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+        self._iproute('route', 'add', destination, via=via, dev=dev, src=src, mtu=mtu)
 
-def iptables(*args):
-    global IPTABLES
-    cl = [IPTABLES] + list(args)
-    sp.check_call(cl)
+    def replace_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+        self._iproute('route', 'replace', destination, via=via, dev=dev, src=src, mtu=mtu)
+
+    def remove_route(self, destination):
+        self._iproute('route', 'del', destination)
+
+    def get_route(self, destination):
+        return self._iproute('route', 'get', destination)
+
+    def flush_cache(self):
+        self._iproute('route', 'flush', 'cache')
+
+    def get_link_info(self, device):
+        return self._iproute('link', 'show', device)
+
+    def set_link_info(self, device, state, mtu=None):
+        self._iproute('link', 'set', state, dev=device, mtu=mtu)
+
+    def add_address(self, device, address):
+        self._iproute('address', 'add', address, dev=device)
+
+
+class IptablesProvider(FirewallProvider):
+    def __init__(self):
+        self.iptables = get_executable('/sbin/iptables')
+
+    def _iptables(self, *args):
+        cl = [self.iptables]
+        cl.extend(args)
+        subprocess.check_call(cl)
+
+    def configure_firewall(self, device):
+        self._iptables('-A', 'INPUT', '-i', device, '-m', 'state', '--state', 'RELATED,ESTABLISHED', '-j', 'ACCEPT')
+        self._iptables('-A', 'INPUT', '-i', device, '-j', 'DROP')
+
+    def deconfigure_firewall(self, device):
+        self._iptables('-D', 'INPUT', '-i', device, '-j', 'DROP')
+        self._iptables('-D', 'INPUT', '-i', device, '-m', 'state', '--state', 'RELATED,ESTABLISHED', '-j', 'ACCEPT')
+
+
+class CheckTunDevProvider(TunnelPrepProvider):
+    def prepare_tunnel(self):
+        if not os.access('/dev/net/tun', os.R_OK | os.W_OK):
+            raise OSError("can't read and write /dev/net/tun")
