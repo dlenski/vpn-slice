@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-from .provider import FirewallProvider, ProcessProvider, RouteProvider
+from .provider import FirewallProvider, ProcessProvider, RouteProvider, TunnelPrepProvider
 from .util import get_executable
 
 
@@ -84,3 +84,9 @@ class IptablesProvider(FirewallProvider):
     def deconfigure_firewall(self, device):
         self._iptables('-D', 'INPUT', '-i', device, '-j', 'DROP')
         self._iptables('-D', 'INPUT', '-i', device, '-m', 'state', '--state', 'RELATED,ESTABLISHED', '-j', 'ACCEPT')
+
+
+class CheckTunDevProvider(TunnelPrepProvider):
+    def prepare_tunnel(self):
+        if not os.access('/dev/net/tun', os.R_OK | os.W_OK):
+            raise OSError("can't read and write /dev/net/tun")

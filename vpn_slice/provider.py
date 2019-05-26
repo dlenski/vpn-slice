@@ -108,3 +108,11 @@ class HostsProvider(metaclass=ABCMeta):
         host_map maps IP addresses to host names, like the hosts file expects.
 
         """
+
+class TunnelPrepProvider:
+    def prepare_tunnel(self):
+        """Prepare operating system to create tunnel devices.
+
+        Base class behavior is to do nothing.
+
+        """

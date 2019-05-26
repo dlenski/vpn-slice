@@ -15,7 +15,7 @@ from .util import slurpy
 
 def get_default_providers():
     if platform.startswith('linux'):
-        from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider
+        from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
         from .posix import DigProvider, PosixHostsFileProvider
         return {
             'process': ProcfsProvider(),
@@ -23,10 +23,11 @@ def get_default_providers():
             'firewall': IptablesProvider(),
             'dns': DigProvider(),
             'hosts': PosixHostsFileProvider(),
+            'prep': CheckTunDevProvider(),
         }
     elif platform.startswith('darwin'):
         from .mac import PsProvider, BSDRouteProvider
-        from .generic import NoFirewallProvider
+        from .generic import NoFirewallProvider, NoTunnelPrepProvider
         from .posix import DigProvider, PosixHostsFileProvider
         return {
             'process': PsProvider(),
@@ -34,6 +35,7 @@ def get_default_providers():
             'firewall': NoFirewallProvider(),
             'dns': DigProvider(),
             'hosts': PosixHostsFileProvider(),
+            'prep': NoTunnelPrepProvider(),
         }
     else:
         raise OSError('Your platform, {}, is unsupported'.format(platform))
@@ -68,7 +70,7 @@ def names_for(host, domains, short=True, long=True):
 ########################################
 
 def do_pre_init(env, args, providers):
-    pass
+    providers['prep'].prepare_tunnel()
 
 def do_disconnect(env, args, providers):
     for pidfile in args.kill:

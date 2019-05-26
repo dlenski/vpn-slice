@@ -7,3 +7,8 @@ class NoFirewallProvider(FirewallProvider):
 
     def deconfigure_firewall(self, device):
         pass
+
+
+class NoTunnelCheckProvider(FirewallProvider):
+    def prepare_tunnel(self):
+        pass
