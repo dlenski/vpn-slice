@@ -218,7 +218,7 @@ def do_post_connect(env, args, providers):
 
 # Translate environment variables which may be passed by our caller
 # into a more Pythonic form (these are take from vpnc-script)
-reasons = Enum('reasons', 'pre_init connect disconnect reconnect')
+reasons = Enum('reasons', 'pre_init connect disconnect reconnect attempt_reconnect')
 vpncenv = [
     ('reason','reason',lambda x: reasons[x.replace('-','_')]),
     ('gateway','VPNGATEWAY',ip_address),
@@ -370,9 +370,18 @@ def main():
         do_pre_init(env, args, providers)
     elif env.reason==reasons.disconnect:
         do_disconnect(env, args, providers)
-    elif env.reason==reasons.reconnect:
+    elif env.reason in (reasons.reconnect, reasons.attempt_reconnect):
+        # FIXME: is there anything that reconnect or attempt_reconnect /should/ do
+        # on a modern system (Linux) which automatically removes routes to
+        # a tunnel adapter that has been removed? I am not clear on whether
+        # any other behavior is potentially useful.
+        #
+        # See these issue comments for some relevant discussion:
+        #   https://gitlab.com/openconnect/openconnect/issues/17#note_131764677
+        #   https://github.com/dlenski/vpn-slice/pull/14#issuecomment-488129621
+
         if args.verbose:
-            print('WARNING: %s ignores reason=reconnect' % p.prog, file=stderr)
+            print('WARNING: %s ignores reason=%s' % (p.prog, env.reason.name), file=stderr)
     elif env.reason==reasons.connect:
         do_connect(env, args, providers)
 
