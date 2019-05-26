@@ -16,19 +16,27 @@ class DigProvider(DNSProvider):
         if bind_address:
             cl.extend(('-b', str(bind_address)))
         cl.extend('@{!s}'.format(s) for s in dns_servers)
-        cl.extend('+domain={!s}'.format(s) for s in search_domains)
-        cl.append(str(hostname))
 
+        # N.B.: dig does not correctly handle the specification of multiple
+        # +domain arguments, discarding all but the last one. Therefore
+        # we need to run it multiple times and combine the results
+        # if multiple search_domains are specified.
+        if search_domains:
+            all_cls = (cl + ['+domain={!s}'.format(sd), hostname] for sd in search_domains)
+        else:
+            all_cls = (cl + hostname,)
         result = set()
-        p = subprocess.Popen(cl, stdout=subprocess.PIPE)
-        output, _ = p.communicate()
-        if p.returncode != 0:
-            return None
-        for line in output.decode().splitlines():
-            try:
-                result.add(ip_address(line.strip()))
-            except ValueError:
-                pass
+        for cl in all_cls:
+            p = subprocess.Popen(cl, stdout=subprocess.PIPE)
+            output, _ = p.communicate()
+            if p.returncode != 0:
+                return None
+            for line in output.decode().splitlines():
+                try:
+                    result.add(ip_address(line.strip()))
+                except ValueError:
+                    # dig sometimes returns extra domain names instead of IP addresses
+                    pass
 
         return result or None
 
