@@ -7,8 +7,13 @@ class ProcessProvider(metaclass=ABCMeta):
         """Get the path to the executable running as a given PID."""
 
     @abstractmethod
-    def ppid_of(self, pid):
-        """Get the PID of the parent of the process with the given PID."""
+    def ppid_of(self, pid=None):
+        """Get the PID of the parent of the process with the given PID,
+        or of the current process if None."""
+
+    @abstractmethod
+    def kill(self, pid):
+        """Kill the process with the given PID."""
 
 
 class RouteProvider(metaclass=ABCMeta):

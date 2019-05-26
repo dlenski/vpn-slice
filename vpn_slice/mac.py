@@ -1,6 +1,8 @@
+import os
 import re
 import subprocess
 from ipaddress import ip_network
+from signal import SIGTERM
 
 from .provider import ProcessProvider, RouteProvider
 from .util import get_executable
@@ -18,11 +20,16 @@ class PsProvider(ProcessProvider):
             if parts[3] == 'txt':
                 return parts[8]
 
-    def ppid_of(self, pid):
+    def ppid_of(self, pid=None):
+        if pid is None:
+            return os.getppid()
         try:
             return int(subprocess.check_output([self.ps, '-p', str(pid), '-o', 'ppid=']).decode().strip())
         except ValueError:
             return None
+
+    def kill(self, pid, signal=SIGTERM):
+        os.kill(pid, signal)
 
 
 class BSDRouteProvider(RouteProvider):

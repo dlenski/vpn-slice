@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 from sys import stderr, platform
-import signal
 import os, subprocess as sp
 import argparse
 from enum import Enum
@@ -76,11 +75,15 @@ def do_disconnect(env, args, providers):
     for pidfile in args.kill:
         try:
             pid = int(open(pidfile).read())
-            os.kill(pid, signal.SIGTERM)
-            if args.verbose:
-                print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
-        except (IOError, ValueError, OSError):
-            pass
+        except (IOError, ValueError):
+            print("WARNING: could not read pid from %s" % pidfile, file=stderr)
+        else:
+            try: providers['process'].kill(pid)
+            except OSError as e:
+                print("WARNING: could not kill pid %d from %s: %s" % (pid, pidfile, str(e)), file=stderr)
+            else:
+                if args.verbose:
+                    print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
 
     removed = providers['hosts'].write_hosts({}, args.name)
     if args.verbose:
@@ -338,7 +341,7 @@ def main():
     providers = get_default_providers()
 
     if args.dump:
-        ppid = os.getppid()
+        ppid = providers['process'].ppid_of(None)
         exe = providers['process'].pid2exe(ppid)
         if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
             ppid = providers['process'].ppid_of(ppid)

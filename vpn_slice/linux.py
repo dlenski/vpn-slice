@@ -1,5 +1,6 @@
 import os
 import subprocess
+from signal import SIGTERM
 
 from .provider import FirewallProvider, ProcessProvider, RouteProvider, TunnelPrepProvider
 from .util import get_executable
@@ -12,11 +13,16 @@ class ProcfsProvider(ProcessProvider):
         except (OSError, IOError):
             return None
 
-    def ppid_of(self, pid):
+    def ppid_of(self, pid=None):
+        if pid is None:
+            return os.getppid()
         try:
             return int(next(open('/proc/%d/stat' % pid)).split()[3])
         except (OSError, ValueError, IOError):
             return None
+
+    def kill(self, pid, signal=SIGTERM):
+        os.kill(pid, signal)
 
 
 class Iproute2Provider(RouteProvider):
