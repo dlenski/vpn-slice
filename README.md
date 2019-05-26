@@ -1,7 +1,13 @@
+vpn-slice
+=========
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Build Status](https://api.travis-ci.org/dlenski/vpn-slice.png)](https://travis-ci.org/dlenski/vpn-slice)
+
 Table of Contents
 =================
 
-  * [vpn-slice](#vpn-slice)
+  * [Introduction](#introduction)
     * [Who this is for](#who-this-is-for)
     * [Requirements](#requirements)
     * [Usage](#usage)
@@ -9,7 +15,7 @@ Table of Contents
   * [License](#license)
     * [TODO](#todo)
 
-# vpn-slice
+## Introduction
 
 This is a replacement for the
 [`vpnc-script`](https://www.infradead.org/openconnect/vpnc-script.html)
