@@ -12,7 +12,7 @@ if sys.version_info < (3,3):
 ########################################
 
 # Based on this recipe, adapted for Python 3, Git 2.8.x, and PEP-440 version identifiers
-#   http://blogs.nopcode.org/brainstorm/2013/05/20/pragmatic-python-versioning-via-setuptools-and-git-tags/
+#   https://web.archive.org/web/20180119150411/http://blogs.nopcode.org/brainstorm/2013/05/20/pragmatic-python-versioning-via-setuptools-and-git-tags/
 #   https://www.python.org/dev/peps/pep-0440/#version-scheme
 
 # Fetch version from git tags, and write to version.py.

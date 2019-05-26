@@ -1,4 +1,3 @@
-
 Table of Contents
 =================
 
@@ -13,8 +12,8 @@ Table of Contents
 # vpn-slice
 
 This is a replacement for the
-[`vpnc-script`](http://www.infradead.org/openconnect/vpnc-script.html)
-used by [OpenConnect](http://www.infradead.org/openconnect) or
+[`vpnc-script`](https://www.infradead.org/openconnect/vpnc-script.html)
+used by [OpenConnect](https://www.infradead.org/openconnect) or
 [VPNC](https://www.unix-ag.uni-kl.de/~massar/vpnc).
 
 Instead of trying to copy the behavior of standard corporate VPN clients,
@@ -53,9 +52,12 @@ traffic as possible through those VPNs.
 * Python 3.3+
 * [`dig`](https://en.wikipedia.org/wiki/Dig_(command)) (DNS lookup
   tool; tested with v9.9.5)
-* Linux OS (the [`iproute2`](https://en.wikipedia.org/wiki/iproute2)
-  and [`iptables`](http://en.wikipedia.org/wiki/iptables) utilities
-  are used for all routing setup)
+* Supported OSes:
+  * Linux kernel 3.x+ with
+    [`iproute2`](https://en.wikipedia.org/wiki/iproute2) and
+    [`iptables`](https://en.wikipedia.org/wiki/iptables) utilities
+    (used for all routing setup)
+  * macOS 10.x
 
 You can install the latest build with `pip` (make sure you are using
 the Python 3.x version, usually invoked with `pip3`):
@@ -66,8 +68,8 @@ the Python 3.x version, usually invoked with `pip3`):
 
 You should specify `vpn-slice` as your connection script with
 `openconnect` or `vpnc`. It has been tested with vpnc v0.5.3, OpenConnect
-v7.06-v7.08 (with both Cisco AnyConnect and Juniper protocols), and also
-[my OpenConnect fork that supports PAN GlobalProtect](//github.com/dlenski/openconnect-gp).
+v7.06+ (Cisco AnyConnect and Juniper protocols) and v8.0+ (PAN GlobalProtect
+protocol).
 
 For example:
 
@@ -89,11 +91,11 @@ or
 # for the disconnect hook to work correctly, due to a bug.
 #
 # I reported this bug, but the original maintainers no longer maintain vpnc.
-#   http://lists.unix-ag.uni-kl.de/pipermail/vpnc-devel/2016-August/004199.html
+#   https://lists.unix-ag.uni-kl.de/pipermail/vpnc-devel/2016-August/004199.html
 #
 # However, some Linux distro packagers have picked up my patch in recent
 # releases, e.g. Ubuntu 17.04:
-#   http://changelogs.ubuntu.com/changelogs/pool/universe/v/vpnc/vpnc_0.5.3r550-3/changelog
+#   https://changelogs.ubuntu.com/changelogs/pool/universe/v/vpnc/vpnc_0.5.3r550-3/changelog
 #
 $ sudo vpnc config_file \
        --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 alias2=alias2.bigcorp.com=192.168.1.43'
@@ -111,16 +113,19 @@ There are many command-line options to alter the behavior of
 Running with `--verbose` makes it explain what it is doing, while running with
 `--dump` shows the environment variables passed in by the caller.
 
-# Inspiration
+# Inspiration and credits
 
-[**@jagtesh**](https://github.com/jagtesh)'s
-[split-tunnelling tutorial gist](https://gist.github.com/jagtesh/5531300) taught me the
-basics of how to set up a split-tunnel VPN by wrapping the standard `vpnc-script`.
-
-[**@apenwarr**](https://github.com/apenwarr)'s
-[sshuttle](https://github.com/apenwarr/sshuttle) has the excellent
-`--auto-hosts` and `--seed-hosts` options. These inspired the
-automatic host lookup feature.
+* [**@jagtesh**](https://github.com/jagtesh)'s
+  [split-tunnelling tutorial gist](https://gist.github.com/jagtesh/5531300) taught me the
+  basics of how to set up a split-tunnel VPN by wrapping the standard `vpnc-script`.
+* [**@apenwarr**](https://github.com/apenwarr)'s
+  [sshuttle](https://github.com/apenwarr/sshuttle) has the excellent
+  `--auto-hosts` and `--seed-hosts` options. These inspired the
+  automatic host lookup feature.
+* [**@gmacon**](https://github.com/gmacon)'s
+  [PR #11](https://github.com/dlenski/vpn-slice/pull/11) substantially
+  refactored the code to separate the OS-dependent parts more
+  cleanly, and added macOS support.
 
 # License
 
@@ -132,5 +137,6 @@ GPLv3 or later.
   * Parse command-line arguments _before_ environment variables
 * Fix timing issues
 * Improve IPv6 support
-* Support OSes other than Linux?
+* Support OSes other than Linux and macOS
+  * Other Unix-like operating systems should be pretty easy
 * Mechanism for specifying split-_exclude_ subnets on the command line
