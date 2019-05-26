@@ -46,6 +46,9 @@ class Iproute2Provider(RouteProvider):
     def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
         self._iproute('route', 'add', destination, via=via, dev=dev, src=src, mtu=mtu)
 
+    def replace_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+        self._iproute('route', 'replace', destination, via=via, dev=dev, src=src, mtu=mtu)
+
     def remove_route(self, destination):
         self._iproute('route', 'del', destination)
 

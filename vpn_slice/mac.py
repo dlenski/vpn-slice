@@ -46,6 +46,8 @@ class BSDRouteProvider(RouteProvider):
             args.extend(('-interface', destination, dev))
         self._route(*args)
 
+    replace_route = add_route
+
     def remove_route(self, destination):
         self._route('delete', destination)
 

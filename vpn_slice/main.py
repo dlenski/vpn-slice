@@ -104,7 +104,7 @@ def do_connect(env, args, providers):
 
     # set explicit route to gateway
     gwr = providers['route'].get_route(env.gateway)
-    providers['route'].add_route(
+    providers['route'].replace_route(
         env.gateway, **{k: gwr.get(k) for k in ('via', 'dev', 'src', 'mtu')})
 
     # drop incoming traffic from VPN
@@ -147,7 +147,7 @@ def do_connect(env, args, providers):
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + (env.nbns if args.nbns else [])
     for dest in chain(ns, args.subnets, args.aliases):
-        providers['route'].add_route(dest, dev=env.tundev)
+        providers['route'].replace_route(dest, dev=env.tundev)
     else:
         providers['route'].flush_cache()
         if args.verbose:
@@ -155,7 +155,7 @@ def do_connect(env, args, providers):
 
     # restore routes to excluded subnets
     for dest, exc_route in exc_subnets:
-        providers['route'].add_route(dest, exc_route)
+        providers['route'].replace_route(dest, exc_route)
     else:
         providers['route'].flush_cache()
         if args.verbose:
@@ -203,7 +203,7 @@ def do_post_connect(env, args, providers):
 
     # add routes to hosts
     for ip in ip_routes:
-        providers['route'].add_route(ip, dev=env.tundev)
+        providers['route'].replace_route(ip, dev=env.tundev)
     else:
         providers['route'].flush_cache()
         if args.verbose:

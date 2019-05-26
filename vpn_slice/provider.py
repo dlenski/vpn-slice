@@ -19,6 +19,21 @@ class RouteProvider(metaclass=ABCMeta):
         You must specify a device or gateway saying where to route to.
         If both are specified, they must agree.
 
+        Implementations may fail if a route that already exists is
+        added again.
+
+        """
+
+    @abstractmethod
+    def replace_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+        """Add or replace a route to a destination.
+
+        You must specify a device or gateway saying where to route to.
+        If both are specified, they must agree.
+
+        Implementations should not fail if a route that already exists
+        is added again.
+
         """
 
     @abstractmethod
