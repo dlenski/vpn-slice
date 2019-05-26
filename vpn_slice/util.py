@@ -11,6 +11,7 @@ def get_executable(path):
 
 
 class slurpy(dict):
+    """Quacks like a dict and an object"""
     def __getattr__(self, k):
         try:
             return self[k]
