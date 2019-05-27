@@ -3,6 +3,7 @@ vpn-slice
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://api.travis-ci.org/dlenski/vpn-slice.png)](https://travis-ci.org/dlenski/vpn-slice)
+[![PyPI](https://img.shields.io/pypi/v/vpn-slice.svg)](https://pypi.python.org/pypi/vpn-slice)
 
 Table of Contents
 =================
