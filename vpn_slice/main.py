@@ -305,7 +305,7 @@ def parse_args(env, args=None):
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
-    args = p.parse_args(args, slurpy())
+    args = p.parse_args(args)
 
     # use the list from the env if --domain wasn't specified, but start with an
     # empty list if it was specified; hence can't use 'default' here:
