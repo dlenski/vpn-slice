@@ -141,7 +141,6 @@ GPLv3 or later.
 ## TODO
 
 * Better error-explaining
-  * Parse command-line arguments _before_ environment variables
 * Fix timing issues
 * Improve IPv6 support
 * Support OSes other than Linux and macOS

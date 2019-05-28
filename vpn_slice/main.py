@@ -241,10 +241,9 @@ vpncenv = [
     ('nsplitexc6','CISCO_IPV6_SPLIT_EXC',int,0),
 ]
 
-def parse_env(env=None, environ=os.environ):
+def parse_env(environ=os.environ):
     global vpncenv
-    if env is None:
-        env = slurpy()
+    env = slurpy()
     for var, envar, maker, *default in vpncenv:
         if envar in environ:
             try: val = maker(environ[envar])
@@ -281,8 +280,8 @@ def parse_env(env=None, environ=os.environ):
 
     return env
 
-# Parse command-line arguments
-def parse_args(env, args=None):
+# Parse command-line arguments and environment
+def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
@@ -291,7 +290,7 @@ def parse_args(env, args=None):
     g.add_argument('--banner', action='store_true', help='Print banner message (default is to suppress it)')
     g = p.add_argument_group('Routing and hostname options')
     g.add_argument('-i','--incoming', action='store_true', help='Allow incoming traffic from VPN (default is to block)')
-    g.add_argument('-n','--name', default=env.tundev, help='Name of this VPN (default is $TUNDEV)')
+    g.add_argument('-n','--name', default=None, help='Name of this VPN (default is $TUNDEV)')
     g.add_argument('-d','--domain', action='append', help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
     g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP*_NET*")
     g.add_argument('-S','--route-splits', action='store_true', help="Add route for VPN's split-tunnel subnets (passed in via $CISCO_SPLIT_*)")
@@ -306,6 +305,11 @@ def parse_args(env, args=None):
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     args = p.parse_args(args)
+    env = parse_env(environ)
+
+    # use the tunnel device as the VPN name if unspecified
+    if args.name is None:
+        args.name = env.tundev
 
     # use the list from the env if --domain wasn't specified, but start with an
     # empty list if it was specified; hence can't use 'default' here:
@@ -330,11 +334,10 @@ def parse_args(env, args=None):
     if args.route_splits:
         args.subnets.extend(env.splitinc)
         args.exc_subnets.extend(env.splitexc)
-    return p, args
+    return p, args, env
 
 def main():
-    env = parse_env()
-    p, args = parse_args(env)
+    p, args, env = parse_args_and_env()
     if env.reason is None:
         p.error("Must be called as vpnc-script, with $reason set")
 
