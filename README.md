@@ -12,7 +12,7 @@ Table of Contents
     * [Who this is for](#who-this-is-for)
     * [Requirements](#requirements)
     * [Usage](#usage)
-  * [Inspiration](#inspiration)
+  * [Inspiration and credits](#inspiration-and-credits)
   * [License](#license)
     * [TODO](#todo)
 
