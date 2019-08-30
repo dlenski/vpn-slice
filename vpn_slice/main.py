@@ -47,7 +47,7 @@ def net_or_host_param(s):
         return hosts, ip_address(ip)
     else:
         try:
-            return ip_network(s)
+            return ip_network(s, strict=False)
         except ValueError:
             return s
 
