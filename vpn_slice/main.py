@@ -264,6 +264,8 @@ def parse_env(environ=os.environ):
     if env.myaddr6:
         env.network6 = env.netmask6.network if env.netmask6 else env.myaddr6.network
         env.myaddr6 = env.myaddr6.ip
+    else:
+        env.network6 = None
 
     # Handle splits
     env.splitinc = []
