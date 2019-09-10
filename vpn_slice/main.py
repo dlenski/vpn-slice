@@ -330,7 +330,7 @@ def parse_args_and_env(args=None, environ=os.environ):
             args.aliases.setdefault(ip, []).extend(hosts)
     if args.route_internal:
         if env.network: args.subnets.append(env.network)
-        if env.network6: args.subnets.append(env.network6)
+        if 'network6' in env and env.network6: args.subnets.append(env.network6)
     if args.route_splits:
         args.subnets.extend(env.splitinc)
         args.exc_subnets.extend(env.splitexc)
