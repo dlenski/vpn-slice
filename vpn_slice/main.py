@@ -69,6 +69,7 @@ def names_for(host, domains, short=True, long=True):
 ########################################
 
 def do_pre_init(env, args, providers):
+    providers['prep'].create_tunnel()
     providers['prep'].prepare_tunnel()
 
 def do_disconnect(env, args, providers):
