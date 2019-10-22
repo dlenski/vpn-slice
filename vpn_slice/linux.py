@@ -1,6 +1,7 @@
 import os
 import subprocess
 from signal import SIGTERM
+import stat
 
 from .provider import FirewallProvider, ProcessProvider, RouteProvider, TunnelPrepProvider
 from .util import get_executable
@@ -93,6 +94,11 @@ class IptablesProvider(FirewallProvider):
 
 
 class CheckTunDevProvider(TunnelPrepProvider):
+    def create_tunnel(self):
+        node = '/dev/net/tun'
+        if not os.path.exists(node):
+            os.makedirs(os.path.dirname(node), exist_ok=True)
+            os.mknod(node, mode=0o640 | stat.S_IFCHR, device = os.makedev(10, 200))
     def prepare_tunnel(self):
         if not os.access('/dev/net/tun', os.R_OK | os.W_OK):
             raise OSError("can't read and write /dev/net/tun")
