@@ -88,7 +88,7 @@ class BSDRouteProvider(RouteProvider):
             flags = match.group(1).split(',')
             mtu = int(match.group(2))
             return {
-                'state': 'up' if 'UP' in flags else 'down',
+                'state': 'UP' if 'UP' in flags else 'DOWN',
                 'mtu': mtu,
             }
         return None
