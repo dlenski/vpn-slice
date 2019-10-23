@@ -24,7 +24,7 @@ class DigProvider(DNSProvider):
         if search_domains:
             all_cls = (cl + ['+domain={!s}'.format(sd), hostname] for sd in search_domains)
         else:
-            all_cls = (cl + hostname,)
+            all_cls = (cl + [hostname],)
         result = set()
         for cl in all_cls:
             p = subprocess.Popen(cl, stdout=subprocess.PIPE)
