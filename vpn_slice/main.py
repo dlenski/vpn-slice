@@ -240,6 +240,7 @@ vpncenv = [
     ('nsplitexc','CISCO_SPLIT_EXC',int,0),
     ('nsplitinc6','CISCO_IPV6_SPLIT_INC',int,0),
     ('nsplitexc6','CISCO_IPV6_SPLIT_EXC',int,0),
+    ('idle_timeout','IDLE_TIMEOUT',int,600),
 ]
 
 def parse_env(environ=os.environ):
