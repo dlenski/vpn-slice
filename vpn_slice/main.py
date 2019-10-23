@@ -7,6 +7,8 @@ import argparse
 from enum import Enum
 from itertools import chain
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
+from time import sleep
+from random import randint, choice, shuffle
 
 from .version import __version__
 from .util import slurpy
@@ -215,6 +217,34 @@ def do_post_connect(env, args, providers):
         if args.verbose:
             print("Added %d routes for named hosts." % len(ip_routes), file=stderr)
 
+    # run DNS queries in background to prevent idle timeouts
+    if args.prevent_idle_timeout:
+        dev = env.tundev
+        dns = env.dns
+        idle_timeout = env.idle_timeout
+
+        while True:
+            delay = randint(2 * idle_timeout // 3, 9 * idle_timeout // 10)
+            if args.verbose > 1:
+                print("Sleeping %d seconds until we issue a DNS query to prevent idle timeout..." % delay, file=stderr)
+            sleep(delay)
+
+            # FIXME: netlink(7) would be a much better way to poll here
+            dev_state = providers['route'].get_link_info(dev).get('state')
+            if dev_state == 'DOWN':
+                print("Tunnel device %s is now DOWN; exiting..." % dev, file=stderr)
+                break
+
+            # pick random host or IP to look up without leaking any new information
+            # about what we do/don't access within the VPN
+            pool = args.hosts
+            pool += map(str, chain(env.dns, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen==r.max_prefixlen)))
+            dummy = choice(pool)
+            shuffle(dns)
+            if args.verbose > 1:
+                print("Issuing DNS lookup of %s to prevent idle timeout..." % dummy, file=stderr)
+            providers['dns'].lookup_host(dummy, dns_servers=dns, bind_address=env.myaddr)
+
 ########################################
 
 # Translate environment variables which may be passed by our caller
@@ -290,6 +320,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
     p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
+    p.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
     g = p.add_argument_group('Informational options')
     g.add_argument('--banner', action='store_true', help='Print banner message (default is to suppress it)')
     g = p.add_argument_group('Routing and hostname options')
@@ -304,7 +335,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g = p.add_argument_group('Debugging options')
-    g.add_argument('-v','--verbose', action='store_true', help="Explain what %(prog)s is doing")
+    g.add_argument('-v','--verbose', action='count', help="Explain what %(prog)s is doing")
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
