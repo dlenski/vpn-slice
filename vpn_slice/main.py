@@ -229,6 +229,8 @@ def do_post_connect(env, args, providers):
         dns = env.dns
         idle_timeout = env.idle_timeout
         setproctitle('vpn-slice --prevent-idle-timeouts --name %s' % args.name)
+        if args.verbose:
+            print("Continuing in background as PID %d, attempting to prevent idle timeouts every %d seconds." % (providers['process'].pid(), idle_timeout))
 
         while True:
             delay = randint(2 * idle_timeout // 3, 9 * idle_timeout // 10)
