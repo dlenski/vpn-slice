@@ -20,8 +20,8 @@ interfaces.
    VPN.
 -  It automatically looks up named hosts, using the VPN's DNS servers,
    and adds entries for them to your ``/etc/hosts`` (which it cleans up
-   after VPN disconnection), however it **does not otherwise alter your
-   ``/etc/resolv.conf`` at all**.
+   after VPN disconnection), however it **does not otherwise alter your**
+   ``/etc/resolv.conf`` **at all**.
 
 Requirements
 ------------
