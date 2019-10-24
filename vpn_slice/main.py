@@ -10,6 +10,12 @@ from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Addr
 from time import sleep
 from random import randint, choice, shuffle
 
+try:
+    from setproctitle import setproctitle
+except ImportError:
+    def setproctitle(title):
+        pass
+
 from .version import __version__
 from .util import slurpy
 
@@ -222,6 +228,7 @@ def do_post_connect(env, args, providers):
         dev = env.tundev
         dns = env.dns
         idle_timeout = env.idle_timeout
+        setproctitle('vpn-slice --prevent-idle-timeouts --name %s' % args.name)
 
         while True:
             delay = randint(2 * idle_timeout // 3, 9 * idle_timeout // 10)
