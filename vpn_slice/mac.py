@@ -2,13 +2,13 @@ import os
 import re
 import subprocess
 from ipaddress import ip_network
-from signal import SIGTERM
 
-from .provider import ProcessProvider, RouteProvider
+from .posix import PosixProcessProvider
+from .provider import RouteProvider
 from .util import get_executable
 
 
-class PsProvider(ProcessProvider):
+class PsProvider(PosixProcessProvider):
     def __init__(self):
         self.lsof = get_executable('/usr/sbin/lsof')
         self.ps = get_executable('/bin/ps')
@@ -27,9 +27,6 @@ class PsProvider(ProcessProvider):
             return int(subprocess.check_output([self.ps, '-p', str(pid), '-o', 'ppid=']).decode().strip())
         except ValueError:
             return None
-
-    def kill(self, pid, signal=SIGTERM):
-        os.kill(pid, signal)
 
 
 class BSDRouteProvider(RouteProvider):

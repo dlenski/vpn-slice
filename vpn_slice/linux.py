@@ -1,13 +1,13 @@
 import os
 import subprocess
-from signal import SIGTERM
 import stat
 
-from .provider import FirewallProvider, ProcessProvider, RouteProvider, TunnelPrepProvider
+from .posix import PosixProcessProvider
+from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider
 from .util import get_executable
 
 
-class ProcfsProvider(ProcessProvider):
+class ProcfsProvider(PosixProcessProvider):
     def pid2exe(self, pid):
         try:
             return os.readlink('/proc/%d/exe' % pid)
@@ -21,9 +21,6 @@ class ProcfsProvider(ProcessProvider):
             return int(next(open('/proc/%d/stat' % pid)).split()[3])
         except (OSError, ValueError, IOError):
             return None
-
-    def kill(self, pid, signal=SIGTERM):
-        os.kill(pid, signal)
 
 
 class Iproute2Provider(RouteProvider):

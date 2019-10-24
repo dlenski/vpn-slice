@@ -2,8 +2,9 @@ import fcntl
 import os
 import subprocess
 from ipaddress import ip_address
+from signal import SIGTERM
 
-from .provider import DNSProvider, HostsProvider
+from .provider import DNSProvider, HostsProvider, ProcessProvider
 from .util import get_executable
 
 
@@ -64,3 +65,11 @@ class HostsFileProvider(HostsProvider):
 class PosixHostsFileProvider(HostsFileProvider):
     def __init__(self):
         super().__init__('/etc/hosts')
+
+
+class PosixProcessProvider(ProcessProvider):
+    def kill(self, pid, signal=SIGTERM):
+        os.kill(pid, signal)
+
+    def pid(self):
+        return os.getpid()

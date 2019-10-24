@@ -7,6 +7,10 @@ class ProcessProvider(metaclass=ABCMeta):
         """Get the path to the executable running as a given PID."""
 
     @abstractmethod
+    def pid(self):
+        """Get the PID of the current process."""
+
+    @abstractmethod
     def ppid_of(self, pid=None):
         """Get the PID of the parent of the process with the given PID,
         or of the current process if None."""
