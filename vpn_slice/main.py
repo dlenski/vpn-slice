@@ -242,10 +242,9 @@ def do_post_connect(env, args):
                 print("Sleeping %d seconds until we issue a DNS query to prevent idle timeout..." % delay, file=stderr)
             sleep(delay)
 
-            # FIXME: netlink(7) would be a much better way to poll here
-            dev_state = providers.route.get_link_info(dev).get('state')
-            if dev_state == 'DOWN':
-                print("Tunnel device %s is now DOWN; exiting..." % dev, file=stderr)
+            # FIXME: netlink(7) may be a much better way to poll here
+            if not providers.process.is_alive(args.ppid):
+                print("Caller (PID %d) has terminated; exiting..." % args.ppid, file=stderr)
                 break
 
             # pick random host or IP to look up without leaking any new information
@@ -350,6 +349,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g = p.add_argument_group('Debugging options')
     g.add_argument('-v','--verbose', action='count', help="Explain what %(prog)s is doing")
+    g.add_argument('--ppid', type=int, help='PID of calling process (normally autodetected, when using openconnect or vpnc)')
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
@@ -359,6 +359,13 @@ def parse_args_and_env(args=None, environ=os.environ):
     # use the tunnel device as the VPN name if unspecified
     if args.name is None:
         args.name = env.tundev
+
+    # autodetect parent or grandparent process (skipping intermediary shell)
+    if args.ppid is None:
+        args.ppid  = providers.process.ppid_of(None)
+        exe = providers.process.pid2exe(args.ppid)
+        if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
+            args.ppid = providers.process.ppid_of(args.ppid)
 
     # use the list from the env if --domain wasn't specified, but start with an
     # empty list if it was specified; hence can't use 'default' here:
@@ -394,12 +401,8 @@ def main():
         p.error("Must be called as vpnc-script, with $reason set")
 
     if args.dump:
-        ppid = providers.process.ppid_of(None)
-        exe = providers.process.pid2exe(ppid)
-        if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
-            ppid = providers.process.ppid_of(ppid)
-            exe = providers.process.pid2exe(ppid)
-        caller = '%s (PID %d)'%(exe, ppid) if exe else 'PID %d' % ppid
+        exe = providers.process.pid2exe(args.ppid)
+        caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
 
         print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
         width = max(len(envar) for var, envar, *rest in vpncenv if envar in os.environ)

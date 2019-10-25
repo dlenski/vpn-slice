@@ -73,3 +73,10 @@ class PosixProcessProvider(ProcessProvider):
 
     def pid(self):
         return os.getpid()
+
+    def is_alive(self, pid):
+        try:
+            os.kill(pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
