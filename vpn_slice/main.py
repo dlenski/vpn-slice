@@ -227,14 +227,14 @@ def do_post_connect(env, args):
         if args.verbose:
             print("Added %d routes for named hosts." % len(ip_routes), file=stderr)
 
-    # run DNS queries in background to prevent idle timeouts
+    # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
         dev = env.tundev
         dns = env.dns
         idle_timeout = env.idle_timeout
-        setproctitle('vpn-slice --prevent-idle-timeouts --name %s' % args.name)
+        setproctitle('vpn-slice --prevent-idle-timeout --name %s' % args.name)
         if args.verbose:
-            print("Continuing in background as PID %d, attempting to prevent idle timeouts every %d seconds." % (providers.process.pid(), idle_timeout))
+            print("Continuing in background as PID %d, attempting to prevent idle timeout every %d seconds." % (providers.process.pid(), idle_timeout))
 
         while True:
             delay = randint(2 * idle_timeout // 3, 9 * idle_timeout // 10)
@@ -244,7 +244,7 @@ def do_post_connect(env, args):
 
             # FIXME: netlink(7) may be a much better way to poll here
             if not providers.process.is_alive(args.ppid):
-                print("Caller (PID %d) has terminated; exiting..." % args.ppid, file=stderr)
+                print("Caller (PID %d) has terminated; idle preventer exiting." % args.ppid, file=stderr)
                 break
 
             # pick random host or IP to look up without leaking any new information
