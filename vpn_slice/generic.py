@@ -10,5 +10,8 @@ class NoFirewallProvider(FirewallProvider):
 
 
 class NoTunnelPrepProvider(TunnelPrepProvider):
+    def create_tunnel(self):
+        pass
+
     def prepare_tunnel(self):
         pass
