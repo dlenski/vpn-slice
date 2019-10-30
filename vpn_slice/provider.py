@@ -117,6 +117,13 @@ class HostsProvider(metaclass=ABCMeta):
         """
 
 class TunnelPrepProvider:
+    def create_tunnel(self):
+        """Create tunnel device.
+
+        Base class behavior is to do nothing.
+
+        """
+
     def prepare_tunnel(self):
         """Prepare operating system to create tunnel devices.
 
