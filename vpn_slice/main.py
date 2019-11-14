@@ -200,7 +200,7 @@ def do_post_connect(env, args):
     for host in args.hosts:
         ips = providers.dns.lookup_host(
                 host, dns_servers=env.dns, search_domains=args.domain,
-                bind_address=env.myaddr)
+                bind_addresses=env.myaddrs)
         if ips is None:
             print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
         else:
@@ -255,7 +255,7 @@ def do_post_connect(env, args):
             shuffle(dns)
             if args.verbose > 1:
                 print("Issuing DNS lookup of %s to prevent idle timeout..." % dummy, file=stderr)
-            providers.dns.lookup_host(dummy, dns_servers=dns, bind_address=env.myaddr)
+            providers.dns.lookup_host(dummy, dns_servers=dns, bind_addresses=env.myaddrs)
 
 ########################################
 
@@ -273,11 +273,11 @@ vpncenv = [
     ('netmask','INTERNAL_IP4_NETMASK',IPv4Address), # a.b.c.d
     ('netmasklen','INTERNAL_IP4_NETMASKLEN',int),
     ('network','INTERNAL_IP4_NETADDR',IPv4Address), # a.b.c.d
-    ('dns','INTERNAL_IP4_DNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
+    ('dns','INTERNAL_IP4_DNS',lambda x: [ip_address(x) for x in x.split()],[]),
     ('nbns','INTERNAL_IP4_NBNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
     ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Interface), # x:y::z or x:y::z/p
     ('netmask6','INTERNAL_IP6_NETMASK',IPv6Interface), # x:y:z:: or x:y::z/p
-    ('dns6','INTERNAL_IP6_DNS',lambda x: [IPv6Address(x) for x in x.split()],[]),
+    ('dns6','INTERNAL_IP6_DNS',lambda x: [ip_address(x) for x in x.split()],[]),
     ('nsplitinc','CISCO_SPLIT_INC',int,0),
     ('nsplitexc','CISCO_SPLIT_EXC',int,0),
     ('nsplitinc6','CISCO_IPV6_SPLIT_INC',int,0),
@@ -310,6 +310,12 @@ def parse_env(environ=os.environ):
         env.myaddr6 = env.myaddr6.ip
     else:
         env.network6 = None
+
+    env['myaddrs'] = []
+    if env.myaddr:
+        env.myaddrs.append(env.myaddr)
+    if env.myaddr6:
+        env.myaddrs.append(env.myaddr6)
 
     # Handle splits
     env.splitinc = []

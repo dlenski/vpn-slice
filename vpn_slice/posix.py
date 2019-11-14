@@ -12,20 +12,29 @@ class DigProvider(DNSProvider):
     def __init__(self):
         self.dig = get_executable('/usr/bin/dig')
 
-    def lookup_host(self, hostname, dns_servers, *, bind_address=None, search_domains=()):
+    def lookup_host(self, hostname, dns_servers, *, bind_addresses=None, search_domains=()):
         cl = [self.dig, '+short', '+noedns']
-        if bind_address:
-            cl.extend(('-b', str(bind_address)))
-        cl.extend('@{!s}'.format(s) for s in dns_servers)
+        some_cls = []
+        if bind_addresses:
+            for bind in bind_addresses:
+                bind_cl = cl + ['-b', str(bind)]
+                bind_cl.extend('@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version)
+                some_cls.append(bind_cl)
+        else:
+            cl.extend('@{!s}'.format(dns) for dns in dns_servers)
+            some_cls.append(cl)
 
         # N.B.: dig does not correctly handle the specification of multiple
         # +domain arguments, discarding all but the last one. Therefore
         # we need to run it multiple times and combine the results
         # if multiple search_domains are specified.
+        all_cls = []
         if search_domains:
-            all_cls = (cl + ['+domain={!s}'.format(sd), hostname] for sd in search_domains)
+            for cl in some_cls:
+                all_cls.extend(cl + ['+domain={!s}'.format(sd), hostname, 'A', hostname, 'AAAA'] for sd in search_domains)
         else:
-            all_cls = (cl + [hostname],)
+            for cl in some_cls:
+                all_cls.extend(cl + [hostname, 'A', hostname, 'AAAA'])
         result = set()
         for cl in all_cls:
             p = subprocess.Popen(cl, stdout=subprocess.PIPE)
