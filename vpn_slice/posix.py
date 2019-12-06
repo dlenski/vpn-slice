@@ -12,17 +12,32 @@ class DigProvider(DNSProvider):
     def __init__(self):
         self.dig = get_executable('/usr/bin/dig')
 
-    def lookup_host(self, hostname, dns_servers, *, bind_addresses=None, search_domains=()):
+    def lookup_host(self, hostname, dns_servers, bind_addresses, *, search_domains=()):
         cl = [self.dig, '+short', '+noedns']
         some_cls = []
-        if bind_addresses:
-            for bind in bind_addresses:
-                bind_cl = cl + ['-b', str(bind)]
-                bind_cl.extend('@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version)
-                some_cls.append(bind_cl)
-        else:
-            cl.extend('@{!s}'.format(dns) for dns in dns_servers)
-            some_cls.append(cl)
+
+        # We only do lookups for protocols of which we have bind addresses
+        if bind_addresses == None or len(bind_addresses) == 0:
+            return None
+
+        ipv4_lookup = False
+        ipv6_lookup = False
+
+        for bind in bind_addresses:
+            if bind.version == 4:
+                ipv4_lookup = True
+            if bind.version == 6:
+                ipv6_lookup = True
+
+            bind_cl = cl + ['-b', str(bind)]
+            bind_cl.extend('@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version)
+            some_cls.append(bind_cl)
+
+        field_requests = []
+        if ipv4_lookup: 
+            field_requests.extend([hostname, 'A'])
+        if ipv6_lookup: 
+            field_requests.extend([hostname, 'AAAA'])
 
         # N.B.: dig does not correctly handle the specification of multiple
         # +domain arguments, discarding all but the last one. Therefore
@@ -31,12 +46,13 @@ class DigProvider(DNSProvider):
         all_cls = []
         if search_domains:
             for cl in some_cls:
-                all_cls.extend(cl + ['+domain={!s}'.format(sd), hostname, 'A', hostname, 'AAAA'] for sd in search_domains)
+                all_cls.extend(cl + ['+domain={!s}'.format(sd)] + field_requests for sd in search_domains)
         else:
             for cl in some_cls:
-                all_cls.extend(cl + [hostname, 'A', hostname, 'AAAA'])
+                all_cls.extend(cl + field_requests)
         result = set()
         for cl in all_cls:
+            print(cl)
             p = subprocess.Popen(cl, stdout=subprocess.PIPE)
             output, _ = p.communicate()
             if p.returncode != 0:
