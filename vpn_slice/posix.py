@@ -52,7 +52,6 @@ class DigProvider(DNSProvider):
                 all_cls.extend(cl + field_requests)
         result = set()
         for cl in all_cls:
-            print(cl)
             p = subprocess.Popen(cl, stdout=subprocess.PIPE)
             output, _ = p.communicate()
             if p.returncode != 0:

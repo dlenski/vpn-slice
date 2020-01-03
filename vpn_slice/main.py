@@ -311,11 +311,7 @@ def parse_env(environ=os.environ):
     else:
         env.network6 = None
 
-    env['myaddrs'] = []
-    if env.myaddr:
-        env.myaddrs.append(env.myaddr)
-    if env.myaddr6:
-        env.myaddrs.append(env.myaddr6)
+    env.myaddrs = list(filter(None, (env.myaddr, env.myaddr6)))
 
     # Handle splits
     env.splitinc = []
