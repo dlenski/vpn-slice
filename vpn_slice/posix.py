@@ -34,9 +34,9 @@ class DigProvider(DNSProvider):
             some_cls.append(bind_cl)
 
         field_requests = []
-        if ipv4_lookup: 
+        if ipv4_lookup:
             field_requests.extend([hostname, 'A'])
-        if ipv6_lookup: 
+        if ipv6_lookup:
             field_requests.extend([hostname, 'AAAA'])
 
         # N.B.: dig does not correctly handle the specification of multiple
