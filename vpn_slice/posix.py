@@ -49,7 +49,7 @@ class DigProvider(DNSProvider):
                 all_cls.extend(cl + ['+domain={!s}'.format(sd)] + field_requests for sd in search_domains)
         else:
             for cl in some_cls:
-                all_cls.extend(cl + field_requests)
+                all_cls.extend([cl + field_requests])
         result = set()
         for cl in all_cls:
             p = subprocess.Popen(cl, stdout=subprocess.PIPE)
