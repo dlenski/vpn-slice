@@ -31,5 +31,5 @@ setup(name="vpn_slice",
       url="https://github.com/dlenski/vpn-slice",
       packages=["vpn_slice"],
       include_package_data = True,
-      entry_points={ 'console_scripts': [ 'vpn-slice=vpn_slice.main:main' ] }
+      entry_points={ 'console_scripts': [ 'vpn-slice=vpn_slice.__main__:main' ] }
       )
