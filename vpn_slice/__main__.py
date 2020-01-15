@@ -257,6 +257,9 @@ def do_post_connect(env, args):
                 print("Issuing DNS lookup of %s to prevent idle timeout..." % dummy, file=stderr)
             providers.dns.lookup_host(dummy, dns_servers=dns, bind_addresses=env.myaddrs)
 
+    elif args.verbose:
+        print("Connection setup done, child process %d exiting." % providers.process.pid())
+
 ########################################
 
 # Translate environment variables which may be passed by our caller
