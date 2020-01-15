@@ -58,13 +58,15 @@ traffic as possible through those VPNs.
 
 * Python 3.3+
 * [`dig`](https://en.wikipedia.org/wiki/Dig_(command)) (DNS lookup
-  tool; tested with v9.9.5)
+  tool
+  * Tested with v9.9.5 and v9.10.3
 * Supported OSes:
   * Linux kernel 3.x+ with
     [`iproute2`](https://en.wikipedia.org/wiki/iproute2) and
     [`iptables`](https://en.wikipedia.org/wiki/iptables) utilities
     (used for all routing setup)
-  * macOS 10.x
+  * macOS 10.x with BSD
+    [`route`](https://en.wikipedia.org/wiki/Route_(command))
 
 You can install the latest build with `pip` (make sure you are using
 the Python 3.x version, usually invoked with `pip3`):
@@ -133,16 +135,19 @@ Running with `--verbose` makes it explain what it is doing, while running with
   [PR #11](https://github.com/dlenski/vpn-slice/pull/11) substantially
   refactored the code to separate the OS-dependent parts more
   cleanly, and added macOS support.
+* [**@joelbu**](https://github.com/joelbu)'s
+  [PR #30](https://github.com/dlenski/vpn-slice/pull/30) added support for IPv6 DNS
+  lookups using `dig`.
 
 # License
 
 GPLv3 or later.
 
-## TODO
+## TODO / Help Wanted
 
 * Better error-explaining
 * Fix timing issues
 * Improve IPv6 support
 * Support OSes other than Linux and macOS
-  * Other Unix-like operating systems should be pretty easy
+    * Other Unix-like operating systems should be pretty easy
 * Mechanism for specifying split-_exclude_ subnets on the command line
