@@ -360,6 +360,9 @@ def parse_args_and_env(args=None, environ=os.environ):
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     args = p.parse_args(args)
     env = parse_env(environ)
+    
+    if args.version:
+        sys.exit()
 
     # use the tunnel device as the VPN name if unspecified
     if args.name is None:
@@ -399,9 +402,9 @@ def parse_args_and_env(args=None, environ=os.environ):
 
 def main():
     global providers
+    p, args, env = parse_args_and_env()
     providers = get_default_providers()
 
-    p, args, env = parse_args_and_env()
     if env.reason is None:
         p.error("Must be called as vpnc-script, with $reason set")
 
