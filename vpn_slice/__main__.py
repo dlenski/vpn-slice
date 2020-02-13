@@ -21,31 +21,34 @@ from .util import slurpy
 
 
 def get_default_providers():
+    global platform
     if platform.startswith('linux'):
         from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
         from .posix import DigProvider, PosixHostsFileProvider
-        return slurpy(
-            process = ProcfsProvider(),
-            route = Iproute2Provider(),
-            firewall = IptablesProvider(),
-            dns = DigProvider(),
-            hosts = PosixHostsFileProvider(),
-            prep = CheckTunDevProvider(),
+        return dict(
+            process = ProcfsProvider,
+            route = Iproute2Provider,
+            firewall = IptablesProvider,
+            dns = DigProvider,
+            hosts = PosixHostsFileProvider,
+            prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
         from .mac import PsProvider, BSDRouteProvider
         from .generic import NoFirewallProvider, NoTunnelPrepProvider
         from .posix import DigProvider, PosixHostsFileProvider
-        return slurpy(
-            process = PsProvider(),
-            route = BSDRouteProvider(),
-            firewall = NoFirewallProvider(),
-            dns = DigProvider(),
-            hosts = PosixHostsFileProvider(),
-            prep = NoTunnelPrepProvider(),
+        return dict(
+            process = PsProvider,
+            route = BSDRouteProvider,
+            firewall = NoFirewallProvider,
+            dns = DigProvider,
+            hosts = PosixHostsFileProvider,
+            prep = NoTunnelPrepProvider,
         )
     else:
-        raise OSError('Your platform, {}, is unsupported'.format(platform))
+        return dict(
+            platform = OSError('Your platform, {}, is unsupported'.format(platform))
+        )
 
 
 def net_or_host_param(s):
@@ -403,12 +406,15 @@ def main(args=None, environ=os.environ):
     global providers
     p, args, env = parse_args_and_env(args, environ)
 
-    try:
-        providers = get_default_providers()
-    except Exception as e:
-        p.error("Couldn't configure all operating system interface providers:\n\n\t{}".format(e))
+    providers = slurpy()
+    provider_errors = False
+    for pn, pv in get_default_providers().items():
+        try:
+            providers[pn] = pv()
+        except Exception as e:
+            print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
+            provider_errors = True
 
-    # needs to be done after providers configured
     finalize_args_and_env(args, env)
 
     if env.myaddr6 or env.netmask6:
@@ -432,7 +438,9 @@ def main(args=None, environ=os.environ):
         if env.splitexc:
             print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
-    if env.reason is None:
+    if provider_errors:
+        raise SystemExit("Aborting due to provider errors")
+    elif env.reason is None:
         p.error("Must be called as vpnc-script, with $reason set; use --help for more information")
     elif env.reason==reasons.pre_init:
         do_pre_init(env, args)
