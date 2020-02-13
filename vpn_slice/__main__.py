@@ -333,7 +333,6 @@ def parse_env(environ=os.environ):
 
 # Parse command-line arguments and environment
 def parse_args_and_env(args=None, environ=os.environ):
-    global providers
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
@@ -360,6 +359,10 @@ def parse_args_and_env(args=None, environ=os.environ):
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     args = p.parse_args(args)
     env = parse_env(environ)
+    return p, args, env
+
+def finalize_args_and_env(args, env):
+    global providers
 
     # use the tunnel device as the VPN name if unspecified
     if args.name is None:
@@ -395,16 +398,25 @@ def parse_args_and_env(args=None, environ=os.environ):
     if args.route_splits:
         args.subnets.extend(env.splitinc)
         args.exc_subnets.extend(env.splitexc)
-    return p, args, env
 
 def main():
     global providers
-    providers = get_default_providers()
-
     p, args, env = parse_args_and_env()
-    if env.reason is None:
-        p.error("Must be called as vpnc-script, with $reason set")
 
+    try:
+        providers = get_default_providers()
+    except Exception as e:
+        p.error("Couldn't configure all operating system interface providers:\n\n\t{}".format(e))
+
+    # needs to be done after providers configured
+    finalize_args_and_env(args, env)
+
+    if env.myaddr6 or env.netmask6:
+        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
+    if env.dns6:
+        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in environ):
+        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
     if args.dump:
         exe = providers.process.pid2exe(args.ppid)
         caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
@@ -420,14 +432,9 @@ def main():
         if env.splitexc:
             print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
-    if env.myaddr6 or env.netmask6:
-        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
-    if env.dns6:
-        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
-        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
-
-    if env.reason==reasons.pre_init:
+    if env.reason is None:
+        p.error("Must be called as vpnc-script, with $reason set; use --help for more information")
+    elif env.reason==reasons.pre_init:
         do_pre_init(env, args)
     elif env.reason==reasons.disconnect:
         do_disconnect(env, args)
