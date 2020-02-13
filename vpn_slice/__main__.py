@@ -399,9 +399,9 @@ def finalize_args_and_env(args, env):
         args.subnets.extend(env.splitinc)
         args.exc_subnets.extend(env.splitexc)
 
-def main():
+def main(args=None, environ=os.environ):
     global providers
-    p, args, env = parse_args_and_env()
+    p, args, env = parse_args_and_env(args, environ)
 
     try:
         providers = get_default_providers()
@@ -422,9 +422,9 @@ def main():
         caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
 
         print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
-        width = max(len(envar) for var, envar, *rest in vpncenv if envar in os.environ)
+        width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
         for var, envar, *rest in vpncenv:
-            if envar in os.environ:
+            if envar in environ:
                 pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
                 print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
         if env.splitinc:
