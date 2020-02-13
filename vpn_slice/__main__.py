@@ -439,9 +439,9 @@ def main(args=None, environ=os.environ):
             print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
     if provider_errors:
-        raise SystemExit("Aborting due to provider errors")
+        raise SystemExit("Aborting due to provider errors; use --help for more information")
     elif env.reason is None:
-        p.error("Must be called as vpnc-script, with $reason set; use --help for more information")
+        raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
     elif env.reason==reasons.pre_init:
         do_pre_init(env, args)
     elif env.reason==reasons.disconnect:
