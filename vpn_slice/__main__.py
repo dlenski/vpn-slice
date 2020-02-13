@@ -357,10 +357,10 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g = p.add_argument_group('Debugging options')
     g.add_argument('-v','--verbose', default=0, action='count', help="Explain what %(prog)s is doing")
-    g.add_argument('--ppid', type=int, help='PID of calling process (normally autodetected, when using openconnect or vpnc)')
+    p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
-    p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
+    g.add_argument('--ppid', type=int, help='PID of calling process (normally autodetected, when using openconnect or vpnc)')
     args = p.parse_args(args)
     env = parse_env(environ)
     return p, args, env

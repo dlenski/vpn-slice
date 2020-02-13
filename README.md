@@ -58,7 +58,7 @@ traffic as possible through those VPNs.
 
 * Python 3.3+
 * [`dig`](https://en.wikipedia.org/wiki/Dig_(command)) (DNS lookup
-  tool
+  tool)
   * Tested with v9.9.5 and v9.10.3
 * Supported OSes:
   * Linux kernel 3.x+ with
