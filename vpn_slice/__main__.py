@@ -21,31 +21,34 @@ from .util import slurpy
 
 
 def get_default_providers():
+    global platform
     if platform.startswith('linux'):
         from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
         from .posix import DigProvider, PosixHostsFileProvider
-        return slurpy(
-            process = ProcfsProvider(),
-            route = Iproute2Provider(),
-            firewall = IptablesProvider(),
-            dns = DigProvider(),
-            hosts = PosixHostsFileProvider(),
-            prep = CheckTunDevProvider(),
+        return dict(
+            process = ProcfsProvider,
+            route = Iproute2Provider,
+            firewall = IptablesProvider,
+            dns = DigProvider,
+            hosts = PosixHostsFileProvider,
+            prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
         from .mac import PsProvider, BSDRouteProvider
         from .generic import NoFirewallProvider, NoTunnelPrepProvider
         from .posix import DigProvider, PosixHostsFileProvider
-        return slurpy(
-            process = PsProvider(),
-            route = BSDRouteProvider(),
-            firewall = NoFirewallProvider(),
-            dns = DigProvider(),
-            hosts = PosixHostsFileProvider(),
-            prep = NoTunnelPrepProvider(),
+        return dict(
+            process = PsProvider,
+            route = BSDRouteProvider,
+            firewall = NoFirewallProvider,
+            dns = DigProvider,
+            hosts = PosixHostsFileProvider,
+            prep = NoTunnelPrepProvider,
         )
     else:
-        raise OSError('Your platform, {}, is unsupported'.format(platform))
+        return dict(
+            platform = OSError('Your platform, {}, is unsupported'.format(platform))
+        )
 
 
 def net_or_host_param(s):
@@ -333,7 +336,6 @@ def parse_env(environ=os.environ):
 
 # Parse command-line arguments and environment
 def parse_args_and_env(args=None, environ=os.environ):
-    global providers
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
@@ -360,6 +362,10 @@ def parse_args_and_env(args=None, environ=os.environ):
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     args = p.parse_args(args)
     env = parse_env(environ)
+    return p, args, env
+
+def finalize_args_and_env(args, env):
+    global providers
 
     # use the tunnel device as the VPN name if unspecified
     if args.name is None:
@@ -395,24 +401,36 @@ def parse_args_and_env(args=None, environ=os.environ):
     if args.route_splits:
         args.subnets.extend(env.splitinc)
         args.exc_subnets.extend(env.splitexc)
-    return p, args, env
 
-def main():
+def main(args=None, environ=os.environ):
     global providers
-    providers = get_default_providers()
+    p, args, env = parse_args_and_env(args, environ)
 
-    p, args, env = parse_args_and_env()
-    if env.reason is None:
-        p.error("Must be called as vpnc-script, with $reason set")
+    providers = slurpy()
+    provider_errors = False
+    for pn, pv in get_default_providers().items():
+        try:
+            providers[pn] = pv()
+        except Exception as e:
+            print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
+            provider_errors = True
 
+    finalize_args_and_env(args, env)
+
+    if env.myaddr6 or env.netmask6:
+        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
+    if env.dns6:
+        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in environ):
+        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
     if args.dump:
         exe = providers.process.pid2exe(args.ppid)
         caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
 
         print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
-        width = max(len(envar) for var, envar, *rest in vpncenv if envar in os.environ)
+        width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
         for var, envar, *rest in vpncenv:
-            if envar in os.environ:
+            if envar in environ:
                 pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
                 print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
         if env.splitinc:
@@ -420,14 +438,11 @@ def main():
         if env.splitexc:
             print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
-    if env.myaddr6 or env.netmask6:
-        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
-    if env.dns6:
-        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in os.environ):
-        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
-
-    if env.reason==reasons.pre_init:
+    if provider_errors:
+        raise SystemExit("Aborting due to provider errors")
+    elif env.reason is None:
+        p.error("Must be called as vpnc-script, with $reason set; use --help for more information")
+    elif env.reason==reasons.pre_init:
         do_pre_init(env, args)
     elif env.reason==reasons.disconnect:
         do_disconnect(env, args)
