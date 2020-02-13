@@ -35,15 +35,12 @@ def get_default_providers():
         )
     elif platform.startswith('darwin'):
         from .mac import PsProvider, BSDRouteProvider
-        from .generic import NoFirewallProvider, NoTunnelPrepProvider
         from .posix import DigProvider, PosixHostsFileProvider
         return dict(
             process = PsProvider,
             route = BSDRouteProvider,
-            firewall = NoFirewallProvider,
             dns = DigProvider,
             hosts = PosixHostsFileProvider,
-            prep = NoTunnelPrepProvider,
         )
     else:
         return dict(
@@ -81,8 +78,9 @@ def names_for(host, domains, short=True, long=True):
 
 def do_pre_init(env, args):
     global providers
-    providers.prep.create_tunnel()
-    providers.prep.prepare_tunnel()
+    if 'prep' in providers:
+        providers.prep.create_tunnel()
+        providers.prep.prepare_tunnel()
 
 def do_disconnect(env, args):
     global providers
@@ -109,12 +107,12 @@ def do_disconnect(env, args):
     except sp.CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
-    # remove iptables rules for incoming traffic
-    if not args.incoming:
+    # remove firewall rule blocking incoming traffic
+    if 'firewall' in providers and not args.incoming:        
         try:
             providers.firewall.deconfigure_firewall(env.tundev)
         except sp.CalledProcessError:
-            print("WARNING: failed to remove iptables rules for VPN interface (%s); check iptables -S" % env.tundev, file=stderr)
+            print("WARNING: failed to deconfigure firewall for VPN interface (%s)" % env.tundev, file=stderr)
 
 def do_connect(env, args):
     global providers
@@ -129,16 +127,19 @@ def do_connect(env, args):
 
     # drop incoming traffic from VPN
     if not args.incoming:
-        try:
-            providers.firewall.configure_firewall(env.tundev)
-            if args.verbose:
-                print("Blocked incoming traffic from VPN interface with iptables.", file=stderr)
-        except sp.CalledProcessError:
+        if 'firewall' not in providers:
+            print("WARNING: no firewall provider available; can't block incoming traffic", file=stderr)
+        else:
             try:
-                providers.firewall.deconfigure_firewall(env.tundev)
+                providers.firewall.configure_firewall(env.tundev)
+                if args.verbose:
+                    print("Blocked incoming traffic from VPN interface with iptables.", file=stderr)
             except sp.CalledProcessError:
-                pass
-            print("WARNING: failed to block incoming traffic", file=stderr)
+                try:
+                    providers.firewall.deconfigure_firewall(env.tundev)
+                except sp.CalledProcessError:
+                    pass
+                print("WARNING: failed to block incoming traffic", file=stderr)
 
     # configure MTU
     mtu = env.mtu
@@ -407,14 +408,15 @@ def main(args=None, environ=os.environ):
     p, args, env = parse_args_and_env(args, environ)
 
     providers = slurpy()
-    provider_errors = False
     for pn, pv in get_default_providers().items():
         try:
             providers[pn] = pv()
         except Exception as e:
             print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
-            provider_errors = True
-
+    missing_required = {p for p in ('route', 'process', 'hosts', 'dns') if p not in providers}
+    if missing_required:
+        raise SystemExit("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
+    
     finalize_args_and_env(args, env)
 
     if env.myaddr6 or env.netmask6:
@@ -438,9 +440,7 @@ def main(args=None, environ=os.environ):
         if env.splitexc:
             print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
-    if provider_errors:
-        raise SystemExit("Aborting due to provider errors; use --help for more information")
-    elif env.reason is None:
+    if env.reason is None:
         raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
     elif env.reason==reasons.pre_init:
         do_pre_init(env, args)
