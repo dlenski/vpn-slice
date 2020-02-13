@@ -14,7 +14,7 @@ class PsProvider(PosixProcessProvider):
         self.ps = get_executable('/bin/ps')
 
     def pid2exe(self, pid):
-        info = subprocess.check_output([self.lsof, '-p', str(pid)]).decode()
+        info = subprocess.check_output([self.lsof, '-p', str(pid)], universal_newlines=True)
         for line in info.splitlines():
             parts = line.split()
             if parts[3] == 'txt':
@@ -24,7 +24,7 @@ class PsProvider(PosixProcessProvider):
         if pid is None:
             return os.getppid()
         try:
-            return int(subprocess.check_output([self.ps, '-p', str(pid), '-o', 'ppid=']).decode().strip())
+            return int(subprocess.check_output([self.ps, '-p', str(pid), '-o', 'ppid='])
         except ValueError:
             return None
 
@@ -35,10 +35,10 @@ class BSDRouteProvider(RouteProvider):
         self.ifconfig = get_executable('/sbin/ifconfig')
 
     def _route(self, *args):
-        return subprocess.check_output([self.route, '-n'] + list(map(str, args))).decode()
+        return subprocess.check_output([self.route, '-n'] + list(map(str, args)), universal_newlines=True)
 
     def _ifconfig(self, *args):
-        return subprocess.check_output([self.ifconfig] + list(map(str, args))).decode()
+        return subprocess.check_output([self.ifconfig] + list(map(str, args)), universal_newlines=True)
 
     def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
         args = ['add']

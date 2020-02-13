@@ -42,7 +42,7 @@ class Iproute2Provider(RouteProvider):
             output_start = None
 
         if output_start is not None:
-            words = subprocess.check_output(cl).decode().split()
+            words = subprocess.check_output(cl, universal_newlines=True).split()
             return {words[i]: words[i + 1] for i in range(output_start, len(words), 2) if words[i] in keys}
         else:
             subprocess.check_call(cl)
