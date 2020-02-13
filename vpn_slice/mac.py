@@ -24,7 +24,7 @@ class PsProvider(PosixProcessProvider):
         if pid is None:
             return os.getppid()
         try:
-            return int(subprocess.check_output([self.ps, '-p', str(pid), '-o', 'ppid='])
+            return int(subprocess.check_output([self.ps, '-p', str(pid), '-o', 'ppid=']))
         except ValueError:
             return None
 
