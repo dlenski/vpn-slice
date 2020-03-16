@@ -40,8 +40,11 @@ class BSDRouteProvider(RouteProvider):
     def _ifconfig(self, *args):
         return subprocess.check_output([self.ifconfig] + list(map(str, args)), universal_newlines=True)
 
+    def _family_option(self, destination):
+        return '-inet6' if destination.version == 6 else '-inet'
+
     def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
-        args = ['add']
+        args = ['add', self._family_option(destination)]
         if mtu is not None:
             args.extend(('-mtu', str(mtu)))
         if via is not None:
@@ -53,10 +56,10 @@ class BSDRouteProvider(RouteProvider):
     replace_route = add_route
 
     def remove_route(self, destination):
-        self._route('delete', destination)
+        self._route('delete', self._family_option(destination), destination)
 
     def get_route(self, destination):
-        info = self._route('get', destination)
+        info = self._route('get', self._family_option(destination), destination)
         lines = iter(info.splitlines())
         info_d = {}
         for line in lines:
