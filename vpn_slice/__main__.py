@@ -410,6 +410,8 @@ def main(args=None, environ=os.environ):
     providers = slurpy()
     for pn, pv in get_default_providers().items():
         try:
+            if isinstance(pv, Exception):
+                raise pv
             providers[pn] = pv()
         except Exception as e:
             print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
