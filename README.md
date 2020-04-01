@@ -4,6 +4,7 @@ vpn-slice
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Build Status](https://api.travis-ci.org/dlenski/vpn-slice.png)](https://travis-ci.org/dlenski/vpn-slice)
 [![PyPI](https://img.shields.io/pypi/v/vpn-slice.svg)](https://pypi.python.org/pypi/vpn-slice)
+[![Homebrew](https://img.shields.io/homebrew/v/vpn-slice.svg)](https://formulae.brew.sh/formula/vpn-slice)
 
 Table of Contents
 =================
@@ -73,7 +74,7 @@ the Python 3.x version, usually invoked with `pip3`):
 
     $ pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
     
-You can also install using [Homebrew](https://brew.sh/) on macOS :
+On macOS, you can also install [Homebrew](https://brew.sh):
 
     $ brew install vpn-slice
 
