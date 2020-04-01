@@ -74,7 +74,7 @@ the Python 3.x version, usually invoked with `pip3`):
 
     $ pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
     
-On macOS, you can also install [Homebrew](https://brew.sh):
+On macOS, you can also install using [Homebrew](https://brew.sh):
 
     $ brew install vpn-slice
 
