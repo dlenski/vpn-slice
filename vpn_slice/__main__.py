@@ -60,6 +60,13 @@ def net_or_host_param(s):
             return s
 
 
+def file_path_param(path):
+    if isinstance(path, str) and os.path.exists(path):
+        return path
+    else:
+        raise ValueError("path not valid")
+
+
 def names_for(host, domains, short=True, long=True):
     if '.' in host: first, rest = host.split('.', 1)
     else: first, rest = host, None
@@ -339,6 +346,7 @@ def parse_env(environ=os.environ):
 def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
+    p.add_argument('-c', '--config', default=None, type=file_path_param, help='Path to List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
     p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     p.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
@@ -365,6 +373,16 @@ def parse_args_and_env(args=None, environ=os.environ):
     env = parse_env(environ)
     return p, args, env
 
+def parse_routes_from_list(args, routes):
+    for x in routes:
+        if isinstance(x, (IPv4Network, IPv6Network)):
+            args.subnets.append(x)
+        elif isinstance(x, str):
+            args.hosts.append(x)
+        else:
+            hosts, ip = x
+            args.aliases.setdefault(ip, []).extend(hosts)
+
 def finalize_args_and_env(args, env):
     global providers
 
@@ -388,14 +406,16 @@ def finalize_args_and_env(args, env):
     args.exc_subnets = []
     args.hosts = []
     args.aliases = {}
-    for x in args.routes:
-        if isinstance(x, (IPv4Network, IPv6Network)):
-            args.subnets.append(x)
-        elif isinstance(x, str):
-            args.hosts.append(x)
-        else:
-            hosts, ip = x
-            args.aliases.setdefault(ip, []).extend(hosts)
+    parse_routes_from_list(args, args.routes)
+    if args.config is not None:
+        print("got config file: {0}".format(args.config))
+        with open(args.config, 'r') as file:
+            routes_from_file = []
+            for line in file:
+                routes_from_file.append(line.rstrip())
+            parse_routes_from_list(args, routes_from_file)
+
+
     if args.route_internal:
         if env.network: args.subnets.append(env.network)
         if env.network6: args.subnets.append(env.network6)
