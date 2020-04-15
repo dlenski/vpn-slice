@@ -7,7 +7,7 @@ import argparse
 from enum import Enum
 from itertools import chain
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
-from time import sleep
+from time import sleep, time
 from random import randint, choice, shuffle
 
 try:
@@ -407,15 +407,17 @@ def finalize_args_and_env(args, env):
     args.hosts = []
     args.aliases = {}
     parse_routes_from_list(args, args.routes)
+    begin_time = time()
     if args.config is not None:
         print("got config file: {0}".format(args.config))
         with open(args.config, 'r') as file:
             routes_from_file = []
             for line in file:
-                routes_from_file.append(line.rstrip())
+                routes_from_file.append(net_or_host_param(line.rstrip()))
             parse_routes_from_list(args, routes_from_file)
-
-
+    end_time = time()
+    print("elapsed time: {0} s; number lines: {1}".format(end_time-begin_time, len(args.subnets) + len(args.hosts)))
+    
     if args.route_internal:
         if env.network: args.subnets.append(env.network)
         if env.network6: args.subnets.append(env.network6)
