@@ -344,7 +344,7 @@ def parse_env(environ=os.environ):
 
 # Parse command-line arguments and environment
 def parse_args_and_env(args=None, environ=os.environ):
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     p.add_argument('-c', '--config', default=None, type=file_path_param, help='Path to List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
