@@ -108,7 +108,7 @@ def do_disconnect(env, args):
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
     # remove firewall rule blocking incoming traffic
-    if 'firewall' in providers and not args.incoming:        
+    if 'firewall' in providers and not args.incoming:
         try:
             providers.firewall.deconfigure_firewall(env.tundev)
         except sp.CalledProcessError:
@@ -374,9 +374,9 @@ def finalize_args_and_env(args, env):
 
     # autodetect parent or grandparent process (skipping intermediary shell)
     if args.ppid is None:
-        args.ppid  = providers.process.ppid_of(None)
+        args.ppid = providers.process.ppid_of(None)
         exe = providers.process.pid2exe(args.ppid)
-        if os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
+        if exe and os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
             args.ppid = providers.process.ppid_of(args.ppid)
 
     # use the list from the env if --domain wasn't specified, but start with an
@@ -418,7 +418,7 @@ def main(args=None, environ=os.environ):
     missing_required = {p for p in ('route', 'process', 'hosts', 'dns') if p not in providers}
     if missing_required:
         raise SystemExit("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
-    
+
     finalize_args_and_env(args, env)
 
     if env.myaddr6 or env.netmask6:
