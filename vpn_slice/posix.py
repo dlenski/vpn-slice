@@ -47,10 +47,10 @@ class DigProvider(DNSProvider):
         # actually fetch results
         result = set()
         for cl in all_cls:
-            p = subprocess.Popen(cl, stdout=subprocess.PIPE, universal_newlines=True)
-            output, _ = p.communicate()
+            p = subprocess.Popen(cl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            output, stderr = p.communicate()
             if p.returncode != 0:
-                return None
+                raise subprocess.CalledProcessError(p.returncode, cmd, output=output, stderr=stderr)
             for line in output.splitlines():
                 try:
                     result.add(ip_address(line.strip()))

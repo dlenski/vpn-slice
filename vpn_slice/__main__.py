@@ -202,18 +202,22 @@ def do_post_connect(env, args):
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
     for host in args.hosts:
-        ips = providers.dns.lookup_host(
-                host, dns_servers=env.dns, search_domains=args.domain,
-                bind_addresses=env.myaddrs)
-        if ips is None:
-            print("WARNING: Lookup for %s on VPN DNS servers failed." % host, file=stderr)
+        try:
+           ips = providers.dns.lookup_host(
+                   host, dns_servers=env.dns, search_domains=args.domain,
+                   bind_addresses=env.myaddrs)
+        except Exception as e:
+            print("WARNING: Lookup for %s on VPN DNS servers failed:\n\t%s" % (host, e), file=stderr)
         else:
-            if args.verbose:
-                print("  %s = %s" % (host, ', '.join(map(str, ips))), file=stderr)
-            ip_routes.update(ips)
-            if args.host_names:
-                names = names_for(host, args.domain, args.short_names)
-                host_map.extend((ip, names) for ip in ips)
+            if ips is None:
+                print("WARNING: Lookup for %s on VPN DNS servers returned nothing." % host, file=stderr)
+            else:
+                if args.verbose:
+                    print("  %s = %s" % (host, ', '.join(map(str, ips))), file=stderr)
+                ip_routes.update(ips)
+                if args.host_names:
+                    names = names_for(host, args.domain, args.short_names)
+                    host_map.extend((ip, names) for ip in ips)
     for ip, aliases in args.aliases.items():
         host_map.append((ip, aliases))
 
