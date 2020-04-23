@@ -311,7 +311,13 @@ def parse_env(environ=os.environ):
 
     # IPv4 network is the combination of the network address (e.g. 192.168.0.0) and the netmask (e.g. 255.255.0.0)
     if env.network:
+        orig_netaddr = env.network
         env.network = IPv4Network(env.network).supernet(new_prefix=env.netmasklen)
+        if env.network.network_address != orig_netaddr:
+            print("WARNING: IPv4 network %s/%d has host bits set, replacing with %s" % (orig_netaddr, env.netmasklen, env.network), file=stderr)
+        if env.network.netmask!=env.netmask:
+            raise AssertionError("IPv4 network (INTERNAL_IP4_{{NETADDR,NETMASK}}) {ad}/{nm} does not match INTERNAL_IP4_NETMASKLEN={nml} (implies /{nmi})".format(
+                ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
         assert env.network.netmask==env.netmask
 
     # IPv6 network is determined by the netmask only
@@ -333,8 +339,11 @@ def parse_env(environ=os.environ):
         nm = IPv4Address(environ['CISCO_SPLIT_%s_%d_MASK' % (pfx, n)])
         nml = int(environ['CISCO_SPLIT_%s_%d_MASKLEN' % (pfx, n)])
         net = IPv4Network(ad).supernet(new_prefix=nml)
+        if net.network_address != ad:
+            print("WARNING: IPv4 split network (CISCO_SPLIT_%s_%d_{ADDR,MASK}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
         if net.netmask!=nm:
-            raise AssertionError("Netmask supplied in CISCO_SPLIT_%s_%d_MASK (%s) does not match the %d-bit prefix (_MASKLEN) of the network address %s (_ADDR)\n\t%s != %s" % (pfx, n, nm, nml, ad, nm, net.netmask))
+            raise AssertionError("IPv4 split network (CISCO_SPLIT_{pfx}_{n}_{{ADDR,MASK}}) {ad}/{nm} does not match CISCO_SPLIT_{pfx}_{n}_MASKLEN={nml} (implies /{nmi})".format(
+                pfx=pfx, n=n, ad=ad, nm=nm, nml=nml, nmi=net.netmask))
         env['split'+pfx.lower()].append(net)
 
     return env
