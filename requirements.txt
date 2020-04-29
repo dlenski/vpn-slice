@@ -1,1 +1,2 @@
 setproctitle
+dnspython

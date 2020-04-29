@@ -22,6 +22,11 @@ from .util import slurpy
 
 def get_default_providers():
     global platform
+    try:
+        from .dnspython import DNSPythonProvider
+    except ImportError:
+        DNSPythonProvider = None
+
     if platform.startswith('linux'):
         from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
         from .posix import DigProvider, PosixHostsFileProvider
@@ -29,17 +34,18 @@ def get_default_providers():
             process = ProcfsProvider,
             route = Iproute2Provider,
             firewall = IptablesProvider,
-            dns = DigProvider,
+            dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
         from .mac import PsProvider, BSDRouteProvider
-        from .posix import DigProvider, PosixHostsFileProvider
+        from .posix import PosixHostsFileProvider
+        from .dnspython import DNSPythonProvider
         return dict(
             process = PsProvider,
             route = BSDRouteProvider,
-            dns = DigProvider,
+            dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
         )
     else:
