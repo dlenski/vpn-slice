@@ -50,7 +50,7 @@ class DigProvider(DNSProvider):
             p = subprocess.Popen(cl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             output, stderr = p.communicate()
             if p.returncode != 0:
-                raise subprocess.CalledProcessError(p.returncode, cmd, output=output, stderr=stderr)
+                raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
             for line in output.splitlines():
                 try:
                     result.add(ip_address(line.strip()))
