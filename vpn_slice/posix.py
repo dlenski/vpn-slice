@@ -19,18 +19,18 @@ class DigProvider(DNSProvider):
             some_cls = [ cl + ['@{!s}'.format(dns) for dns in dns_servers] ]
             field_requests = [hostname, 'A', hostname, 'AAAA']
         else:
-            # We only do lookups for protocols of which we have bind addresses
             some_cls = []
             field_requests = []
             for bind in bind_addresses:
-                if bind.version == 4:
-                    field_requests.extend([hostname, 'A'])
-                elif bind.version == 6:
-                    field_requests.extend([hostname, 'AAAA'])
+                # We only do lookups for protocols of which we have bind addresses.
+                # (For example, if we have only an IPv4 bind address, we don't lookup AAAA/IPv6
+                # DNS records because we won't be able to route traffic to them.)
+                field_requests.extend([hostname, ('AAAA' if bind.version == 6 else 'A')])
 
-                bind_cl = cl + ['-b', str(bind)]
-                bind_cl.extend('@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version)
-                some_cls.append(bind_cl)
+                # We can only do a lookup via DNS-over-IPv[X] if we have an IPv[X] address to bind to.
+                matching_dns = ['@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version]
+                if matching_dns:
+                    some_cls.append(cl + ['-b', str(bind)] + matching_dns)
 
         # N.B.: dig does not correctly handle the specification of multiple
         # +domain arguments, discarding all but the last one. Therefore
