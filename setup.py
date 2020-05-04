@@ -26,10 +26,14 @@ setup(name="vpn_slice",
       long_description=open('description.rst').read(),
       author="Daniel Lenski",
       author_email="dlenski@gmail.com",
-      install_requires=["setproctitle"],
+      extras_require={
+        "setproctitle": ["setproctitle"],
+        "dnspython": ["dnspython"],
+      },
+      install_requires=["setproctitle", "dnspython"],
       license='GPL v3 or later',
       url="https://github.com/dlenski/vpn-slice",
       packages=["vpn_slice"],
       include_package_data = True,
-      entry_points={ 'console_scripts': [ 'vpn-slice=vpn_slice.__main__:main' ] }
+      entry_points={ 'console_scripts': [ 'vpn-slice=vpn_slice.__main__:main' ] },
       )

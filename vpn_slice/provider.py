@@ -99,9 +99,21 @@ class FirewallProvider(metaclass=ABCMeta):
 
 
 class DNSProvider(metaclass=ABCMeta):
+    def configure(self, dns_servers, *, bind_addresses=None, search_domains=()):
+        """Configure provider to use the specified DNS servers, bind addresses, and search domains."""
+        self.dns_servers = dns_servers
+        self.bind_addresses = bind_addresses
+        self.search_domains = search_domains
+
     @abstractmethod
-    def lookup_host(self, hostname, dns_servers, *, bind_addresses=None, search_domains=()):
-        """Look up the address of a host."""
+    def lookup_host(self, hostname, keep_going=True):
+        """Look up the address(es) of a host using configured servers.
+
+        If keep_going is True, it will continue until all possible
+        combinations of address family (IPv4/6) and search domain are
+        exhausted; if False, it will return as soon as it has found
+        any valid records.
+        """
 
 
 class HostsProvider(metaclass=ABCMeta):

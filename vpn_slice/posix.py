@@ -11,12 +11,15 @@ from .util import get_executable
 class DigProvider(DNSProvider):
     def __init__(self):
         self.dig = get_executable('/usr/bin/dig')
+        self.base_cl = [self.dig, '+short', '+noedns']
 
-    def lookup_host(self, hostname, dns_servers, *, bind_addresses=None, search_domains=()):
-        cl = [self.dig, '+short', '+noedns']
+    def lookup_host(self, hostname, keep_going=True):
+        dns_servers = self.dns_servers
+        bind_addresses = self.bind_addresses
+        search_domains = self.search_domains
 
         if not bind_addresses:
-            some_cls = [ cl + ['@{!s}'.format(dns) for dns in dns_servers] ]
+            some_cls = [ self.base_cl + ['@{!s}'.format(dns) for dns in dns_servers] ]
             field_requests = [hostname, 'A', hostname, 'AAAA']
         else:
             some_cls = []
@@ -30,7 +33,7 @@ class DigProvider(DNSProvider):
                 # We can only do a lookup via DNS-over-IPv[X] if we have an IPv[X] address to bind to.
                 matching_dns = ['@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version]
                 if matching_dns:
-                    some_cls.append(cl + ['-b', str(bind)] + matching_dns)
+                    some_cls.append(self.base_cl + ['-b', str(bind)] + matching_dns)
 
         # N.B.: dig does not correctly handle the specification of multiple
         # +domain arguments, discarding all but the last one. Therefore
@@ -57,6 +60,8 @@ class DigProvider(DNSProvider):
                 except ValueError:
                     # dig sometimes returns extra domain names instead of IP addresses
                     pass
+            if result and not keep_going:
+                return result
 
         return result or None
 

@@ -22,6 +22,11 @@ from .util import slurpy
 
 def get_default_providers():
     global platform
+    try:
+        from .dnspython import DNSPythonProvider
+    except ImportError:
+        DNSPythonProvider = None
+
     if platform.startswith('linux'):
         from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
         from .posix import DigProvider, PosixHostsFileProvider
@@ -29,17 +34,18 @@ def get_default_providers():
             process = ProcfsProvider,
             route = Iproute2Provider,
             firewall = IptablesProvider,
-            dns = DigProvider,
+            dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
         from .mac import PsProvider, BSDRouteProvider
-        from .posix import DigProvider, PosixHostsFileProvider
+        from .posix import PosixHostsFileProvider
+        from .dnspython import DNSPythonProvider
         return dict(
             process = PsProvider,
             route = BSDRouteProvider,
-            dns = DigProvider,
+            dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
         )
     else:
@@ -201,11 +207,10 @@ def do_post_connect(env, args):
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
+    providers.dns.configure(dns_servers=env.dns, search_domains=args.domain, bind_addresses=env.myaddrs)
     for host in args.hosts:
         try:
-           ips = providers.dns.lookup_host(
-                   host, dns_servers=env.dns, search_domains=args.domain,
-                   bind_addresses=env.myaddrs)
+           ips = providers.dns.lookup_host(host)
         except Exception as e:
             print("WARNING: Lookup for %s on VPN DNS servers failed:\n\t%s" % (host, e), file=stderr)
         else:
@@ -263,7 +268,7 @@ def do_post_connect(env, args):
             shuffle(dns)
             if args.verbose > 1:
                 print("Issuing DNS lookup of %s to prevent idle timeout..." % dummy, file=stderr)
-            providers.dns.lookup_host(dummy, dns_servers=dns, bind_addresses=env.myaddrs)
+            providers.dns.lookup_host(dummy, keep_going=False)
 
     elif args.verbose:
         print("Connection setup done, child process %d exiting." % providers.process.pid())
