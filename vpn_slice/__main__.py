@@ -455,7 +455,7 @@ def main(args=None, environ=os.environ):
     finalize_args_and_env(args, env)
 
     if env.myaddr6 or env.netmask6:
-        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
+        print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
     if args.dump:
         exe = providers.process.pid2exe(args.ppid)
         caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
