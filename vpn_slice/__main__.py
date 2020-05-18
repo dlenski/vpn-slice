@@ -357,6 +357,15 @@ def parse_env(environ=os.environ):
                 pfx=pfx, n=n, ad=ad, nm=nm, nml=nml, nmi=net.netmask))
         env['split'+pfx.lower()].append(net)
 
+    for pfx, n in chain((('INC', n) for n in range(env.nsplitinc6)),
+                        (('EXC', n) for n in range(env.nsplitexc6))):
+        ad = IPv6Address(environ['CISCO_IPV6_SPLIT_%s_%d_ADDR' % (pfx, n)])
+        nml = int(environ['CISCO_IPV6_SPLIT_%s_%d_MASKLEN' % (pfx, n)])
+        net = IPv6Network(ad).supernet(new_prefix=nml)
+        if net.network_address != ad:
+            print("WARNING: IPv6 split network (CISCO_IPV6_SPLIT_%s_%d_{ADDR,MASKLEN}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
+        env['split'+pfx.lower()].append(net)
+
     return env
 
 # Parse command-line arguments and environment
@@ -449,8 +458,6 @@ def main(args=None, environ=os.environ):
         print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
     if env.dns6:
         print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in environ):
-        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
     if args.dump:
         exe = providers.process.pid2exe(args.ppid)
         caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
@@ -462,9 +469,9 @@ def main(args=None, environ=os.environ):
                 pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
                 print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
         if env.splitinc:
-            print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
+            print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
         if env.splitexc:
-            print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
+            print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
     if env.reason is None:
         raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
