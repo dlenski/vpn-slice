@@ -325,12 +325,18 @@ def parse_env(environ=os.environ):
                 ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
         assert env.network.netmask==env.netmask
 
-    # IPv6 network is determined by the netmask only
-    # (e.g. /16 supplied as part of the address, or ffff:ffff:ffff:ffff:: supplied as separate netmask)
-    if env.myaddr6:
-        env.network6 = env.netmask6.network if env.netmask6 else env.myaddr6.network
-        env.myaddr6 = env.myaddr6.ip
+    # Need to match behavior of original vpnc-script here
+    # Examples:
+    #   1) INTERNAL_IP6_ADDRESS=fe80::1, INTERNAL_IP6_NETMASK=fe80::/64  => interface of fe80::1/64,  network of fe80::/64
+    #   2) INTERNAL_IP6_ADDRESS=unset,   INTERNAL_IP6_NETMASK=fe80::1/64 => interface of fe80::1/64,  network of fe80::/64
+    #   3) INTERNAL_IP6_ADDRESS=2000::1, INTERNAL_IP6_NETMASK=unset      => interface of 2000::1/128, network of 2000::1/128
+    if env.myaddr6 or env.netmask6:
+        if not env.netmask6:
+            env.netmask6 = IPv6Network(env.myaddr6) # case 3 above, /128
+        env.myaddr6 = IPv6Interface(env.netmask6)
+        env.network6 = env.myaddr6.network
     else:
+        env.myaddr6 = None
         env.network6 = None
 
     env.myaddrs = list(filter(None, (env.myaddr, env.myaddr6)))
