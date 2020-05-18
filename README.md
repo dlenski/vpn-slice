@@ -12,7 +12,9 @@ Table of Contents
   * [Introduction](#introduction)
     * [Who this is for](#who-this-is-for)
     * [Requirements](#requirements)
+    * [First steps](#first-steps)
     * [Usage](#usage)
+    * [Diagnostics](#diagnostics)
   * [Inspiration and credits](#inspiration-and-credits)
   * [License](#license)
     * [TODO](#todo)
@@ -70,13 +72,43 @@ traffic as possible through those VPNs.
     [`route`](https://en.wikipedia.org/wiki/Route_(command))
 
 You can install the latest build with `pip` (make sure you are using
-the Python 3.x version, usually invoked with `pip3`):
+the Python 3.x version, usually invoked with `pip3`).
 
-    $ pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
-    
+You should install as `root` (e.g. using `sudo`), because
+`openconnect` or `vpnc` will need to be able to invoke `vpn-slice`
+while running as root:
+
+    $ sudo pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
+
 On macOS, you can also install using [Homebrew](https://brew.sh):
 
     $ brew install vpn-slice
+
+## First steps
+
+Before trying to use `vpn-slice` with `openconnect` or `vpnc`,
+check that it works properly on your platform, and can verify that it has all of
+the access and dependencies that it needs (to modify `/etc/hosts`, alter
+routing table, etc.):
+
+    $ sudo vpn-slice --self-test
+    ***************************************************************************
+    *** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***
+    ***************************************************************************
+
+If you run the self-test as a non-`root` user, it will tell you what required
+access it is unable to obtain:
+
+    $ vpn-slice --self-test
+    WARNING: Couldn't configure hosts provider: Cannot read/write /etc/hosts
+    ******************************************************************************************
+    *** Self-test did not pass. Double-check that you are running as root (e.g. with sudo) ***
+    ******************************************************************************************
+    Aborting because providers for hosts are required; use --help for more information
+
+When you start trying to use `vpn-slice` for real, you should use the
+[diagnostic options](#diagnostics) (e.g `openconnect -s 'vpn-slice
+--verbose --dump'`) to troubleshoot and understand its behavior.
 
 ## Usage
 
@@ -123,6 +155,8 @@ example, multiple aliases can be specified for a single IP address.
 
 There are many command-line options to alter the behavior of
 `vpn-slice`; try `vpn-slice --help` to show them all.
+
+# Diagnostics
 
 Running with `--verbose` makes it explain what it is doing, while running with
 `--dump` shows the environment variables passed in by the caller.

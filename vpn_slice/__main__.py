@@ -186,7 +186,7 @@ def do_connect(env, args):
     else:
         providers.route.flush_cache()
         if args.verbose:
-            print("Restored routes for %d excluded subnets." % len(exc_subnets), file=stderr)
+            print("Restored routes for %d excluded subnets." % len(exc_subnets), exc_subnets, file=stderr)
 
 def do_post_connect(env, args):
     global providers
@@ -374,6 +374,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g = p.add_argument_group('Debugging options')
+    g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
     g.add_argument('-v','--verbose', default=0, action='count', help="Explain what %(prog)s is doing")
     p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
@@ -423,42 +424,58 @@ def finalize_args_and_env(args, env):
 
 def main(args=None, environ=os.environ):
     global providers
-    p, args, env = parse_args_and_env(args, environ)
 
-    providers = slurpy()
-    for pn, pv in get_default_providers().items():
-        try:
-            if isinstance(pv, Exception):
-                raise pv
-            providers[pn] = pv()
-        except Exception as e:
-            print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
-    missing_required = {p for p in ('route', 'process', 'hosts', 'dns') if p not in providers}
-    if missing_required:
-        raise SystemExit("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
+    try:
+        p, args, env = parse_args_and_env(args, environ)
 
-    finalize_args_and_env(args, env)
+        providers = slurpy()
+        for pn, pv in get_default_providers().items():
+            try:
+                if isinstance(pv, Exception):
+                    raise pv
+                providers[pn] = pv()
+            except Exception as e:
+                print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
+        missing_required = {p for p in ('route', 'process', 'hosts', 'dns') if p not in providers}
+        if missing_required:
+            raise RuntimeError("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
 
-    if env.myaddr6 or env.netmask6:
-        print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
-    if env.dns6:
-        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-    if any(v.startswith('CISCO_IPV6_SPLIT_') for v in environ):
-        print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
-    if args.dump:
-        exe = providers.process.pid2exe(args.ppid)
-        caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
+        finalize_args_and_env(args, env)
 
-        print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
-        width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
-        for var, envar, *rest in vpncenv:
-            if envar in environ:
-                pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
-                print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
-        if env.splitinc:
-            print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
-        if env.splitexc:
-            print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
+        if env.myaddr6 or env.netmask6:
+            print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
+        if env.dns6:
+            print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
+        if any(v.startswith('CISCO_IPV6_SPLIT_') for v in environ):
+            print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
+        if args.dump:
+            exe = providers.process.pid2exe(args.ppid)
+            caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
+
+            print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
+            width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
+            for var, envar, *rest in vpncenv:
+                if envar in environ:
+                    pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
+                    print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
+            if env.splitinc:
+                print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
+            if env.splitexc:
+                print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
+
+    except Exception as e:
+        if args.self_test:
+            print('******************************************************************************************', file=stderr)
+            print('*** Self-test did not pass. Double-check that you are running as root (e.g. with sudo) ***', file=stderr)
+            print('******************************************************************************************', file=stderr)
+        raise SystemExit(*e.args)
+
+    else:
+        if args.self_test:
+            print('***************************************************************************', file=stderr)
+            print('*** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***', file=stderr)
+            print('***************************************************************************', file=stderr)
+        raise SystemExit()
 
     if env.reason is None:
         raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
