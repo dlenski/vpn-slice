@@ -172,7 +172,7 @@ def do_connect(env, args):
     exc_subnets = [(dest, providers.route.get_route(dest)) for dest in args.exc_subnets]
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
-    ns = env.dns + (env.nbns if args.nbns else [])
+    ns = env.dns + env.dns6 + (env.nbns if args.nbns else [])
     for dest in chain(ns, args.subnets, args.aliases):
         providers.route.replace_route(dest, dev=env.tundev)
     else:
@@ -196,7 +196,7 @@ def do_post_connect(env, args):
     host_map = []
 
     if args.ns_hosts:
-        ns_names = [ (ip, ('dns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.dns) ]
+        ns_names = [ (ip, ('dns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.dns + env.dns6) ]
         if args.nbns:
             ns_names += [ (ip, ('nbns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.nbns) ]
         host_map += ns_names
@@ -207,7 +207,7 @@ def do_post_connect(env, args):
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
-    providers.dns.configure(dns_servers=env.dns, search_domains=args.domain, bind_addresses=env.myaddrs)
+    providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
     for host in args.hosts:
         try:
            ips = providers.dns.lookup_host(host)
@@ -243,7 +243,7 @@ def do_post_connect(env, args):
     # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
         dev = env.tundev
-        dns = env.dns
+        dns = (env.dns + env.dns6)
         idle_timeout = env.idle_timeout
         setproctitle('vpn-slice --prevent-idle-timeout --name %s' % args.name)
         if args.verbose:
@@ -263,7 +263,7 @@ def do_post_connect(env, args):
             # pick random host or IP to look up without leaking any new information
             # about what we do/don't access within the VPN
             pool = args.hosts
-            pool += map(str, chain(env.dns, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen==r.max_prefixlen)))
+            pool += map(str, chain(env.dns, env.dns6, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen==r.max_prefixlen)))
             dummy = choice(pool)
             shuffle(dns)
             if args.verbose > 1:
@@ -456,8 +456,6 @@ def main(args=None, environ=os.environ):
 
     if env.myaddr6 or env.netmask6:
         print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
-    if env.dns6:
-        print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
     if args.dump:
         exe = providers.process.pid2exe(args.ppid)
         caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
