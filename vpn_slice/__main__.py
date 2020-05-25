@@ -128,8 +128,7 @@ def do_connect(env, args):
 
     # set explicit route to gateway
     gwr = providers.route.get_route(env.gateway)
-    providers.route.replace_route(
-        env.gateway, **{k: gwr.get(k) for k in ('via', 'dev', 'src', 'mtu')})
+    providers.route.replace_route(env.gateway, **gwr)
 
     # drop incoming traffic from VPN
     if not args.incoming:
@@ -182,7 +181,7 @@ def do_connect(env, args):
 
     # restore routes to excluded subnets
     for dest, exc_route in exc_subnets:
-        providers.route.replace_route(dest, exc_route)
+        providers.route.replace_route(dest, **exc_route)
     else:
         providers.route.flush_cache()
         if args.verbose:
