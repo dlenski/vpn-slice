@@ -5,7 +5,7 @@ from sys import stderr, platform
 import os, subprocess as sp
 import argparse
 from enum import Enum
-from itertools import chain
+from itertools import chain, zip_longest
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
 from time import sleep
 from random import randint, choice, shuffle
@@ -15,6 +15,9 @@ try:
 except ImportError:
     def setproctitle(title):
         pass
+
+def tagged(iter, tag):
+    return zip_longest(iter, (), fillvalue=tag)
 
 from .version import __version__
 from .util import slurpy
@@ -129,6 +132,8 @@ def do_connect(env, args):
     # set explicit route to gateway
     gwr = providers.route.get_route(env.gateway)
     providers.route.replace_route(env.gateway, **gwr)
+    if args.verbose > 1:
+        print("Set explicit route to VPN gateway %s (%s)" % (env.gateway, ', '.join('%s %s' % kv for kv in gwr.items())), file=stderr)
 
     # drop incoming traffic from VPN
     if not args.incoming:
@@ -172,7 +177,9 @@ def do_connect(env, args):
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + env.dns6 + (env.nbns if args.nbns else [])
-    for dest in chain(ns, args.subnets, args.aliases):
+    for dest, tag in chain(tagged(ns, "nameserver"), tagged(args.subnets, "subnet"), tagged(args.aliases, "alias")):
+        if args.verbose > 1:
+            print("Adding route to %s %s through %s." % (tag, dest, env.tundev), file=stderr)
         providers.route.replace_route(dest, dev=env.tundev)
     else:
         providers.route.flush_cache()
@@ -182,6 +189,8 @@ def do_connect(env, args):
     # restore routes to excluded subnets
     for dest, exc_route in exc_subnets:
         providers.route.replace_route(dest, **exc_route)
+        if args.verbose > 1:
+            print("Restoring split-exclude route to %s (%s)" % (dest, ', '.join('%s %s' % kv for kv in exc_route.items())), file=stderr)
     else:
         providers.route.flush_cache()
         if args.verbose:
@@ -233,6 +242,8 @@ def do_post_connect(env, args):
 
     # add routes to hosts
     for ip in ip_routes:
+        if args.verbose > 1:
+            print("Adding route to %s (for named hosts) through %s." % (ip, env.tundev), file=stderr)
         providers.route.replace_route(ip, dev=env.tundev)
     else:
         providers.route.flush_cache()
