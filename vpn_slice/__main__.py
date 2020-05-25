@@ -172,7 +172,7 @@ def do_connect(env, args):
     exc_subnets = [(dest, providers.route.get_route(dest)) for dest in args.exc_subnets]
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
-    ns = env.dns + (env.nbns if args.nbns else [])
+    ns = env.dns + env.dns6 + (env.nbns if args.nbns else [])
     for dest in chain(ns, args.subnets, args.aliases):
         providers.route.replace_route(dest, dev=env.tundev)
     else:
@@ -196,7 +196,7 @@ def do_post_connect(env, args):
     host_map = []
 
     if args.ns_hosts:
-        ns_names = [ (ip, ('dns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.dns) ]
+        ns_names = [ (ip, ('dns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.dns + env.dns6) ]
         if args.nbns:
             ns_names += [ (ip, ('nbns%d.%s' % (ii, args.name),)) for ii, ip in enumerate(env.nbns) ]
         host_map += ns_names
@@ -207,7 +207,7 @@ def do_post_connect(env, args):
 
     if args.verbose:
         print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
-    providers.dns.configure(dns_servers=env.dns, search_domains=args.domain, bind_addresses=env.myaddrs)
+    providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
     for host in args.hosts:
         try:
            ips = providers.dns.lookup_host(host)
@@ -243,7 +243,7 @@ def do_post_connect(env, args):
     # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
         dev = env.tundev
-        dns = env.dns
+        dns = (env.dns + env.dns6)
         idle_timeout = env.idle_timeout
         setproctitle('vpn-slice --prevent-idle-timeout --name %s' % args.name)
         if args.verbose:
@@ -263,7 +263,7 @@ def do_post_connect(env, args):
             # pick random host or IP to look up without leaking any new information
             # about what we do/don't access within the VPN
             pool = args.hosts
-            pool += map(str, chain(env.dns, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen==r.max_prefixlen)))
+            pool += map(str, chain(env.dns, env.dns6, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen==r.max_prefixlen)))
             dummy = choice(pool)
             shuffle(dns)
             if args.verbose > 1:
@@ -325,12 +325,18 @@ def parse_env(environ=os.environ):
                 ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
         assert env.network.netmask==env.netmask
 
-    # IPv6 network is determined by the netmask only
-    # (e.g. /16 supplied as part of the address, or ffff:ffff:ffff:ffff:: supplied as separate netmask)
-    if env.myaddr6:
-        env.network6 = env.netmask6.network if env.netmask6 else env.myaddr6.network
-        env.myaddr6 = env.myaddr6.ip
+    # Need to match behavior of original vpnc-script here
+    # Examples:
+    #   1) INTERNAL_IP6_ADDRESS=fe80::1, INTERNAL_IP6_NETMASK=fe80::/64  => interface of fe80::1/64,  network of fe80::/64
+    #   2) INTERNAL_IP6_ADDRESS=unset,   INTERNAL_IP6_NETMASK=fe80::1/64 => interface of fe80::1/64,  network of fe80::/64
+    #   3) INTERNAL_IP6_ADDRESS=2000::1, INTERNAL_IP6_NETMASK=unset      => interface of 2000::1/128, network of 2000::1/128
+    if env.myaddr6 or env.netmask6:
+        if not env.netmask6:
+            env.netmask6 = IPv6Network(env.myaddr6) # case 3 above, /128
+        env.myaddr6 = IPv6Interface(env.netmask6)
+        env.network6 = env.myaddr6.network
     else:
+        env.myaddr6 = None
         env.network6 = None
 
     env.myaddrs = list(filter(None, (env.myaddr, env.myaddr6)))
@@ -349,6 +355,15 @@ def parse_env(environ=os.environ):
         if net.netmask!=nm:
             raise AssertionError("IPv4 split network (CISCO_SPLIT_{pfx}_{n}_{{ADDR,MASK}}) {ad}/{nm} does not match CISCO_SPLIT_{pfx}_{n}_MASKLEN={nml} (implies /{nmi})".format(
                 pfx=pfx, n=n, ad=ad, nm=nm, nml=nml, nmi=net.netmask))
+        env['split'+pfx.lower()].append(net)
+
+    for pfx, n in chain((('INC', n) for n in range(env.nsplitinc6)),
+                        (('EXC', n) for n in range(env.nsplitexc6))):
+        ad = IPv6Address(environ['CISCO_IPV6_SPLIT_%s_%d_ADDR' % (pfx, n)])
+        nml = int(environ['CISCO_IPV6_SPLIT_%s_%d_MASKLEN' % (pfx, n)])
+        net = IPv6Network(ad).supernet(new_prefix=nml)
+        if net.network_address != ad:
+            print("WARNING: IPv6 split network (CISCO_IPV6_SPLIT_%s_%d_{ADDR,MASKLEN}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
         env['split'+pfx.lower()].append(net)
 
     return env
@@ -443,11 +458,7 @@ def main(args=None, environ=os.environ):
         finalize_args_and_env(args, env)
 
         if env.myaddr6 or env.netmask6:
-            print('WARNING: IPv6 address or netmask set, but this version of %s has only rudimentary support for them.' % p.prog, file=stderr)
-        if env.dns6:
-            print('WARNING: IPv6 DNS servers set, but this version of %s does not know how to handle them' % p.prog, file=stderr)
-        if any(v.startswith('CISCO_IPV6_SPLIT_') for v in environ):
-            print('WARNING: CISCO_IPV6_SPLIT_* environment variables set, but this version of %s does not handle them' % p.prog, file=stderr)
+        print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
         if args.dump:
             exe = providers.process.pid2exe(args.ppid)
             caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
@@ -459,9 +470,9 @@ def main(args=None, environ=os.environ):
                     pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
                     print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
             if env.splitinc:
-                print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
+                print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
             if env.splitexc:
-                print('  %-*s => %s=%r' % (width, 'CISCO_SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
+                print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
 
     except Exception as e:
         if args.self_test:
