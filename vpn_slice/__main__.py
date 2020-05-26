@@ -458,7 +458,7 @@ def main(args=None, environ=os.environ):
         finalize_args_and_env(args, env)
 
         if env.myaddr6 or env.netmask6:
-        print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
+            print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
         if args.dump:
             exe = providers.process.pid2exe(args.ppid)
             caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
@@ -486,7 +486,7 @@ def main(args=None, environ=os.environ):
             print('***************************************************************************', file=stderr)
             print('*** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***', file=stderr)
             print('***************************************************************************', file=stderr)
-        raise SystemExit()
+            raise SystemExit()
 
     if env.reason is None:
         raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
