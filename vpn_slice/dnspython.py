@@ -32,8 +32,8 @@ class DNSPythonProvider(DNSProvider):
 
             for rectype in self.rectypes:
                 try:
-                    # print("Issuing query for hostname %r, rectype %r, source %r, search_domains %r, nameservers %r" % (
-                    #     hostname, rectype, source, self.resolver.search_domains, self.resolver.nameservers), file=stderr)
+                    print("Issuing query for hostname %r, rectype %r, source %r, search_domains %r, nameservers %r" % (
+                        hostname, rectype, source, self.resolver.search_domains, self.resolver.nameservers), file=stderr)
                     a = self.resolver.query(hostname, rectype, source=str(source))
                     print("Got results: %r" % list(a), file=stderr)
                 except (NXDOMAIN, NoAnswer):
