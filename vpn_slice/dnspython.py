@@ -1,4 +1,4 @@
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_interface
 from dns.resolver import Resolver, NXDOMAIN, NoAnswer
 from dns.name import root, from_text
 

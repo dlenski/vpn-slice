@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from ipaddress import ip_interface
 
 
 class ProcessProvider(metaclass=ABCMeta):
@@ -102,7 +103,7 @@ class DNSProvider(metaclass=ABCMeta):
     def configure(self, dns_servers, *, bind_addresses=None, search_domains=()):
         """Configure provider to use the specified DNS servers, bind addresses, and search domains."""
         self.dns_servers = dns_servers
-        self.bind_addresses = bind_addresses
+        self.bind_addresses = [ip_interface(a).ip for a in bind_addresses]
         self.search_domains = search_domains
 
     @abstractmethod
