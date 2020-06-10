@@ -1,7 +1,7 @@
 import os
 import re
 import subprocess
-from ipaddress import ip_network
+from ipaddress import ip_network, ip_interface
 
 from .posix import PosixProcessProvider
 from .provider import RouteProvider
@@ -102,8 +102,8 @@ class BSDRouteProvider(RouteProvider):
         self._ifconfig(*args)
 
     def add_address(self, device, address):
+        address = ip_interface(address)
         if address.version == 6:
-            family = 'inet6'
+            self._ifconfig(device, 'inet6', address)
         else:
-            family = 'inet'
-        self._ifconfig(device, family, ip_network(address), address)
+            self._ifconfig(device, 'inet', address.ip, address.ip, 'netmask', '255.255.255.255')
