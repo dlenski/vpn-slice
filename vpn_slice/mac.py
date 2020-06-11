@@ -106,4 +106,7 @@ class BSDRouteProvider(RouteProvider):
         if address.version == 6:
             self._ifconfig(device, 'inet6', address)
         else:
+            # Repetition of the IP address is the correct syntax for a point-to-point interface
+            # with BSD ifconfig. See example in default vpnc-script:
+            #   https://gitlab.com/openconnect/vpnc-scripts/blob/https://gitlab.com/openconnect/vpnc-scripts/blob/921e8760/vpnc-script#L193
             self._ifconfig(device, 'inet', address.ip, address.ip, 'netmask', '255.255.255.255')
