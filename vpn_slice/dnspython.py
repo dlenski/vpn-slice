@@ -1,5 +1,6 @@
+from sys import stderr
 from ipaddress import ip_address
-from dns.resolver import Resolver, NXDOMAIN, NoAnswer
+from dns.resolver import Resolver, NXDOMAIN, NoAnswer, Timeout
 from dns.name import root, from_text
 
 from .provider import DNSProvider
@@ -31,9 +32,15 @@ class DNSPythonProvider(DNSProvider):
 
             for rectype in self.rectypes:
                 try:
+                    # print("Issuing query for hostname %r, rectype %r, source %r, search_domains %r, nameservers %r" % (
+                    #     hostname, rectype, source, self.resolver.search_domains, self.resolver.nameservers), file=stderr)
                     a = self.resolver.query(hostname, rectype, source=str(source))
+                    print("Got results: %r" % list(a), file=stderr)
                 except (NXDOMAIN, NoAnswer):
                     pass
+                except Timeout:
+                    # No point in retrying with a different rectype if these DNS server(s) are not responding
+                    break
                 else:
                     result.update(ip_address(r.address) for r in a)
                 if result and not keep_going:
