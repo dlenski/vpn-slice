@@ -20,7 +20,7 @@ with open(version_py, 'r') as fh:
 
 ########################################
 
-setup(name="vpn_slice",
+setup(name="vpn-slice",
       version=version_pep,
       description=("vpnc-script replacement for easy split-tunnel VPN setup"),
       long_description=open('description.rst').read(),
