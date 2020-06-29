@@ -11,7 +11,7 @@ class DNSPythonProvider(DNSProvider):
 
         self.resolver = Resolver(configure=False)
         self.resolver.domain = root
-        self.resolver.search_domains = [from_text(d) for d in search_domains]
+        self.resolver.search = [from_text(d) for d in search_domains]
 
         self.rectypes = []
         if self.bind_addresses is None or any(a.version == 4 for a in self.bind_addresses):
