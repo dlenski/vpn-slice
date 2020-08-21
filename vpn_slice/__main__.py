@@ -53,7 +53,7 @@ def get_default_providers():
         )
     elif platform.startswith('freebsd'):
         from .mac import BSDRouteProvider
-        from .linux import ProcfsProvider
+        from .freebsd import ProcfsProvider
         from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
         return dict(
