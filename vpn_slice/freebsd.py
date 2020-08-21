@@ -1,9 +1,6 @@
 import os
-import subprocess
-import stat
 
 from .posix import PosixProcessProvider
-from .util import get_executable
 
 
 class ProcfsProvider(PosixProcessProvider):
