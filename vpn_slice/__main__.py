@@ -51,6 +51,17 @@ def get_default_providers():
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
         )
+    elif platform.startswith('freebsd'):
+        from .mac import BSDRouteProvider
+        from .freebsd import ProcfsProvider
+        from .posix import PosixHostsFileProvider
+        from .dnspython import DNSPythonProvider
+        return dict(
+            process = ProcfsProvider,
+            route = BSDRouteProvider,
+            dns = DNSPythonProvider or DigProvider,
+            hosts = PosixHostsFileProvider,
+        )
     else:
         return dict(
             platform = OSError('Your platform, {}, is unsupported'.format(platform))
