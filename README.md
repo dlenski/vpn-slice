@@ -70,6 +70,9 @@ traffic as possible through those VPNs.
     (used for all routing setup)
   * macOS 10.x with BSD
     [`route`](https://en.wikipedia.org/wiki/Route_(command))
+  * FreeBSD with BSD
+    [`route`](https://en.wikipedia.org/wiki/Route_(command))
+    if [`procfs`](https://www.freebsd.org/cgi/man.cgi?query=procfs&sektion=5) is mounted
 
 You can install the latest build with `pip` (make sure you are using
 the Python 3.x version, usually invoked with `pip3`).
