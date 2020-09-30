@@ -71,9 +71,9 @@ class BSDRouteProvider(RouteProvider):
         vals = next(lines).split()
         info_d.update(zip(keys, vals))
         return {
-            'via': info_d['gateway'],
-            'dev': info_d['interface'],
-            'mtu': info_d['mtu'],
+            'via': info_d.get('gateway', None),
+            'dev': info_d.get('interface', None),
+            'mtu': info_d.get('mtu', None),
         }
 
     def flush_cache(self):
