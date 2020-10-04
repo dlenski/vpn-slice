@@ -59,22 +59,24 @@ class BSDRouteProvider(RouteProvider):
         self._route('delete', self._family_option(destination), destination)
 
     def get_route(self, destination):
+        # Format of BSD route get output: https://unix.stackexchange.com/questions/53446
         info = self._route('get', self._family_option(destination), destination)
         lines = iter(info.splitlines())
         info_d = {}
         for line in lines:
             if ':' not in line:
+                keys = line.split()
+                vals = next(lines).split()
+                info_d.update(zip(keys, vals))
                 break
-            key, _, val = line.partition(':')
+            key, val = line.split(':', 1)
             info_d[key.strip()] = val.strip()
-        keys = line.split()
-        vals = next(lines).split()
-        info_d.update(zip(keys, vals))
-        return {
-            'via': info_d.get('gateway', None),
-            'dev': info_d.get('interface', None),
-            'mtu': info_d.get('mtu', None),
-        }
+        if 'gateway' in info_d or 'interface' in info_d:
+            return {
+                'via': info_d.get('gateway', None),
+                'dev': info_d.get('interface', None),
+                'mtu': info_d.get('mtu', None),
+            }
 
     def flush_cache(self):
         pass
