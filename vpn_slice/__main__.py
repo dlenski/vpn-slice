@@ -141,10 +141,16 @@ def do_connect(env, args):
         for l in env.banner.splitlines(): print("| "+l)
 
     # set explicit route to gateway
-    gwr = providers.route.get_route(env.gateway)
-    providers.route.replace_route(env.gateway, **gwr)
-    if args.verbose > 1:
-        print("Set explicit route to VPN gateway %s (%s)" % (env.gateway, ', '.join('%s %s' % kv for kv in gwr.items())), file=stderr)
+    if env.gateway.is_loopback:
+        print("WARNING: Gateway address is loopback (%s); probably a local proxy.", file=stderr)
+    else:
+        gwr = providers.route.get_route(env.gateway)
+        if gwr:
+            providers.route.replace_route(env.gateway, **gwr)
+            if args.verbose > 1:
+                print("Set explicit route to VPN gateway %s (%s)" % (env.gateway, ', '.join('%s %s' % kv for kv in gwr.items())), file=stderr)
+        else:
+            print("WARNING: no route to VPN gateway found %s; cannot set explicit route to it." % env.gateway)
 
     # drop incoming traffic from VPN
     if not args.incoming:
@@ -184,7 +190,13 @@ def do_connect(env, args):
         providers.route.add_address(env.tundev, env.myaddr6)
 
     # save routes for excluded subnets
-    exc_subnets = [(dest, providers.route.get_route(dest)) for dest in args.exc_subnets]
+    exc_subnets = []
+    for dest in args.exc_subnets:
+        r = providers.route.get_route(dest)
+        if r:
+            exc_subnets.append((dest, r))
+        else:
+            print("WARNING: Ignoring unroutable split-exclude %s" % dest, file=stderr)
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + env.dns6 + (env.nbns if args.nbns else [])
