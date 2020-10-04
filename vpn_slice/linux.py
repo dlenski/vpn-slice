@@ -43,7 +43,7 @@ class Iproute2Provider(RouteProvider):
 
         if output_start is not None:
             words = subprocess.check_output(cl, universal_newlines=True).split()
-            if args[:2]==('route','get') and words[0] in ('broadcast', 'multicast', 'local'):
+            if args[:2]==('route','get') and words[0] in ('broadcast', 'multicast', 'local', 'unreachable'):
                 output_start += 1
             return {words[i]: words[i + 1] for i in range(output_start, len(words), 2) if words[i] in keys}
         else:
