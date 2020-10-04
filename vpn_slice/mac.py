@@ -71,14 +71,12 @@ class BSDRouteProvider(RouteProvider):
                 break
             key, val = line.split(':', 1)
             info_d[key.strip()] = val.strip()
-        if 'gateway' not in info_d and 'interface' not in info_d:
-            raise OSError("'route get {} {}' returned neither 'interface' nor 'gateway' fields".format(
-                self._family_option(destination), destination))
-        return {
-            'via': info_d.get('gateway', None),
-            'dev': info_d.get('interface', None),
-            'mtu': info_d.get('mtu', None),
-        }
+        if 'gateway' in info_d or 'interface' in info_d:
+            return {
+                'via': info_d.get('gateway', None),
+                'dev': info_d.get('interface', None),
+                'mtu': info_d.get('mtu', None),
+            }
 
     def flush_cache(self):
         pass

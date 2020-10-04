@@ -43,6 +43,8 @@ class Iproute2Provider(RouteProvider):
 
         if output_start is not None:
             words = subprocess.check_output(cl, universal_newlines=True).split()
+            if args[:2]==('route','get') and words[0] in ('broadcast', 'multicast', 'local'):
+                output_start += 1
             return {words[i]: words[i + 1] for i in range(output_start, len(words), 2) if words[i] in keys}
         else:
             subprocess.check_call(cl)
@@ -57,7 +59,12 @@ class Iproute2Provider(RouteProvider):
         self._iproute('route', 'del', destination)
 
     def get_route(self, destination):
-        return self._iproute('route', 'get', destination)
+        r = self._iproute('route', 'get', destination)
+        # Ignore localhost or incomplete routes
+        if r.get('dev') == 'lo':
+            del r['dev']
+        if 'dev' in r or 'via' in r:
+            return r
 
     def flush_cache(self):
         self._iproute('route', 'flush', 'cache')
