@@ -1,6 +1,6 @@
-import fcntl
 import os
 import subprocess
+from abc import abstractmethod
 from ipaddress import ip_address
 from signal import SIGTERM
 
@@ -72,10 +72,14 @@ class HostsFileProvider(HostsProvider):
         if not os.access(path, os.R_OK | os.W_OK):
             raise OSError('Cannot read/write {}'.format(path))
 
+    @abstractmethod
+    def lock_hosts_file(self, hostf):
+        """Lock the hosts file."""
+
     def write_hosts(self, host_map, name):
         tag = 'vpn-slice-{} AUTOCREATED'.format(name)
         with open(self.path, 'r+') as hostf:
-            fcntl.flock(hostf, fcntl.LOCK_EX)  # POSIX only, obviously
+            self.lock_hosts_file(hostf)
             lines = hostf.readlines()
             keeplines = [l for l in lines if not l.endswith('# %s\n' % tag)]
             hostf.seek(0, 0)
@@ -89,9 +93,12 @@ class HostsFileProvider(HostsProvider):
 class PosixHostsFileProvider(HostsFileProvider):
     def __init__(self):
         super().__init__('/etc/hosts')
+        
+    def lock_hosts_file(self, hostf):
+        import fcntl
+        fcntl.flock(hostf, fcntl.LOCK_EX)  # POSIX only, obviously
 
-
-class PosixProcessProvider(ProcessProvider):
+class PythonOsProcessProvider(ProcessProvider):
     def kill(self, pid, signal=SIGTERM):
         os.kill(pid, signal)
 

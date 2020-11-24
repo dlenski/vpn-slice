@@ -3,12 +3,12 @@ import re
 import subprocess
 from ipaddress import ip_network, ip_interface
 
-from .posix import PosixProcessProvider
+from .posix import PythonOsProcessProvider
 from .provider import RouteProvider
 from .util import get_executable
 
 
-class PsProvider(PosixProcessProvider):
+class PsProvider(PythonOsProcessProvider):
     def __init__(self):
         self.lsof = get_executable('/usr/sbin/lsof')
         self.ps = get_executable('/bin/ps')

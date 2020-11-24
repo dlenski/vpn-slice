@@ -61,6 +61,17 @@ def get_default_providers():
             route = BSDRouteProvider,
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
+        ) 
+    elif platform.startswith('win32'):
+        from .win import WinProcessProvider, WinHostsFileProvider, WinRouteProvider
+        from .freebsd import ProcfsProvider
+        from .posix import PosixHostsFileProvider
+        from .dnspython import DNSPythonProvider
+        return dict(
+            process = WinProcessProvider,
+            route = WinRouteProvider,
+            dns = DNSPythonProvider,
+            hosts = WinHostsFileProvider,
         )
     else:
         return dict(
@@ -136,6 +147,7 @@ def do_disconnect(env, args):
 
 def do_connect(env, args):
     global providers
+    global platform
     if args.banner and env.banner:
         print("Connect Banner:")
         for l in env.banner.splitlines(): print("| "+l)
@@ -203,7 +215,7 @@ def do_connect(env, args):
     for dest, tag in chain(tagged(ns, "nameserver"), tagged(args.subnets, "subnet"), tagged(args.aliases, "alias")):
         if args.verbose > 1:
             print("Adding route to %s %s through %s." % (tag, dest, env.tundev), file=stderr)
-        providers.route.replace_route(dest, dev=env.tundev)
+        providers.route.replace_route(dest, dev=env.tundev, via=(env.via if platform.startswith("win32") else None))
     else:
         providers.route.flush_cache()
         if args.verbose:
@@ -221,6 +233,7 @@ def do_connect(env, args):
 
 def do_post_connect(env, args):
     global providers
+    global platform
     # lookup named hosts for which we need routes and/or host_map entries
     # (the DNS/NBNS servers already have their routes)
     ip_routes = set()
@@ -267,7 +280,7 @@ def do_post_connect(env, args):
     for ip in ip_routes:
         if args.verbose > 1:
             print("Adding route to %s (for named hosts) through %s." % (ip, env.tundev), file=stderr)
-        providers.route.replace_route(ip, dev=env.tundev)
+        providers.route.replace_route(ip, dev=env.tundev, via=(env.via if platform.startswith("win32") else None))
     else:
         providers.route.flush_cache()
         if args.verbose:
@@ -358,6 +371,8 @@ def parse_env(environ=os.environ):
             raise AssertionError("IPv4 network (INTERNAL_IP4_{{NETADDR,NETMASK}}) {ad}/{nm} does not match INTERNAL_IP4_NETMASKLEN={nml} (implies /{nmi})".format(
                 ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
         assert env.network.netmask==env.netmask
+        # first/lowest IP-addr in the range should be internal GW (seen in Windows vpnc-script.js)
+        env.via = next(env.network.hosts())
 
     # Need to match behavior of original vpnc-script here
     # Examples:
