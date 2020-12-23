@@ -74,8 +74,14 @@ def net_or_host_param(s):
         ip = hosts.pop()
         return hosts, ip_address(ip)
     else:
+        if s.lstrip().startswith('%'):
+            include = False
+            s = s.lstrip()[1:]
+        else:
+            include = True
+
         try:
-            return ip_network(s, strict=False)
+            return include, ip_network(s, strict=False)
         except ValueError:
             return s
 
@@ -405,7 +411,7 @@ def parse_env(environ=os.environ):
 # Parse command-line arguments and environment
 def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
-    p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
+    p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, included subnets (e.g. 192.168.0.0/24), excluded subnets (e.g. %8.0.0.0/8), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
     p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     p.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
@@ -457,10 +463,12 @@ def finalize_args_and_env(args, env):
     args.hosts = []
     args.aliases = {}
     for x in args.routes:
-        if isinstance(x, (IPv4Network, IPv6Network)):
-            args.subnets.append(x)
-        elif isinstance(x, str):
+        if isinstance(x, str):
             args.hosts.append(x)
+        elif x[0] in (True, False):
+            include, net = x
+            if include: args.subnets.append(net)
+            else: args.exc_subnets.append(net)
         else:
             hosts, ip = x
             args.aliases.setdefault(ip, []).extend(hosts)
@@ -507,6 +515,18 @@ def main(args=None, environ=os.environ):
                 print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
             if env.splitexc:
                 print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
+            if args.subnets:
+                print('Complete set of subnets to include in VPN routes:', file=stderr)
+                print('  ' + '\n  '.join(map(str, args.subnets)))
+            if args.exc_subnets:
+                print('Complete set of subnets to exclude from VPN routes:', file=stderr)
+                print('  ' + '\n  '.join(map(str, args.exc_subnets)))
+            if args.aliases:
+                print('Complete set of host aliases to add /etc/hosts entries for:', file=stderr)
+                print('  ' + '\n  '.join(args.aliases))
+            if args.hosts:
+                print('Complete set of host names to include in VPN routes after DNS lookup%s:' % (' (and add /etc/hosts entries for)' if args.host_names else ''), file=stderr)
+                print('  ' + '\n  '.join(args.hosts))
 
     except Exception as e:
         if args.self_test:

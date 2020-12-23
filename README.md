@@ -150,11 +150,13 @@ $ sudo vpnc config_file \
        --script '/path/to/vpn-slice 192.168.1.0/24 hostname1 alias2=alias2.bigcorp.com=192.168.1.43'
 ```
 
-Notice that `vpn-slice` accepts both *hostnames alone* (`hostname1`) as well as
-host-to-IP* aliases (`alias2=alias2.bigcorp.com=192.168.1.43`). The former are first looked up using the
-VPN's DNS servers. Both are also added to the routing table, as well as to
-`/etc/hosts` (unless `--no-host-names` is specified). As in this
-example, multiple aliases can be specified for a single IP address.
+Notice that `vpn-slice` accepts several different kinds of routes and hostnames on the command line:
+
+- Hostnames *alone* (`hostname1`) as well as *host-to-IP* aliases (`alias2=alias2.bigcorp.com=192.168.1.43`).
+  The former are first looked up using the VPN's DNS servers. Both are also added to the routing table, as
+  well as to `/etc/hosts` (unless `--no-host-names` is specified). As in this example, multiple aliases can
+  be specified for a single IP address.
+- Subnets to *include* (`10.0.0.0/8`) in the VPN routes as well as subnets to explicitly *exclude* (`%10.123.0.0/24`).
 
 There are many command-line options to alter the behavior of
 `vpn-slice`; try `vpn-slice --help` to show them all.
@@ -192,4 +194,3 @@ GPLv3 or later.
 * Improve IPv6 support
 * Support OSes other than Linux and macOS
     * Other Unix-like operating systems should be pretty easy
-* Mechanism for specifying split-_exclude_ subnets on the command line
