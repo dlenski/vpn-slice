@@ -42,7 +42,7 @@ def get_default_providers():
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
-        from .mac import PsProvider, BSDRouteProvider, MacDomainDNSProvider
+        from .mac import PsProvider, BSDRouteProvider, MacSplitDNSProvider
         from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
         return dict(
@@ -50,7 +50,7 @@ def get_default_providers():
             route = BSDRouteProvider,
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
-            domain_vpn_dns = MacDomainDNSProvider,
+            domain_vpn_dns = MacSplitDNSProvider,
         )
     elif platform.startswith('freebsd'):
         from .mac import BSDRouteProvider

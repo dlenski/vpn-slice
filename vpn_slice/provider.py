@@ -144,7 +144,7 @@ class TunnelPrepProvider:
 
         """
 
-class DomainDNSProvider:
+class SplitDNSProvider:
     def configure_domain_vpn_dns(self, domains, nameservers):
         """Configure domain vpn dns.
 
