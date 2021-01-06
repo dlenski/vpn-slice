@@ -143,3 +143,18 @@ class TunnelPrepProvider:
         Base class behavior is to do nothing.
 
         """
+
+class DomainDNSProvider:
+    def configure_domain_vpn_dns(self, domains, nameservers):
+        """Configure domain vpn dns.
+
+        Base class behavior is to do nothing.
+
+        """
+
+    def deconfigure_domain_vpn_dns(self, domains, nameservers):
+        """Remove domain vpn dns.
+
+        Base class behavior is to do nothing.
+
+        """

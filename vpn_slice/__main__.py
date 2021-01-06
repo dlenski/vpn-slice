@@ -42,7 +42,7 @@ def get_default_providers():
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
-        from .mac import PsProvider, BSDRouteProvider
+        from .mac import PsProvider, BSDRouteProvider, MacDomainDNSProvider
         from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
         return dict(
@@ -50,6 +50,7 @@ def get_default_providers():
             route = BSDRouteProvider,
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
+            domain_vpn_dns = MacDomainDNSProvider,
         )
     elif platform.startswith('freebsd'):
         from .mac import BSDRouteProvider
@@ -133,6 +134,13 @@ def do_disconnect(env, args):
             providers.firewall.deconfigure_firewall(env.tundev)
         except sp.CalledProcessError:
             print("WARNING: failed to deconfigure firewall for VPN interface (%s)" % env.tundev, file=stderr)
+
+    if args.vpn_domains is not None:
+        try:
+            providers.domain_vpn_dns.deconfigure_domain_vpn_dns(args.vpn_domains, env.dns)
+        except:
+            print("WARNING: failed to deconfigure domains vpn dns", file=stderr)
+
 
 def do_connect(env, args):
     global providers
@@ -218,6 +226,14 @@ def do_connect(env, args):
         providers.route.flush_cache()
         if args.verbose:
             print("Restored routes for %d excluded subnets." % len(exc_subnets), exc_subnets, file=stderr)
+
+    # Use vpn dns for provided domains
+    if args.vpn_domains is not None:
+        if 'domain_vpn_dns' not in providers:
+            print("WARNING: no split dns provider available; can't split dns", file=stderr)
+        else:
+            providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns)
+
 
 def do_post_connect(env, args):
     global providers
@@ -429,6 +445,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     g.add_argument('--ppid', type=int, help='PID of calling process (normally autodetected, when using openconnect or vpnc)')
+    g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma seperated domains to query with vpn dns")
     args = p.parse_args(args)
     env = parse_env(environ)
     return p, args, env
@@ -470,6 +487,9 @@ def finalize_args_and_env(args, env):
     if args.route_splits:
         args.subnets.extend(env.splitinc)
         args.exc_subnets.extend(env.splitexc)
+    if args.vpn_domains is not None:
+        args.vpn_domains = str.split(args.vpn_domains, ',')
+
 
 def main(args=None, environ=os.environ):
     global providers

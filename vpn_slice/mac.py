@@ -4,7 +4,7 @@ import subprocess
 from ipaddress import ip_network, ip_interface
 
 from .posix import PosixProcessProvider
-from .provider import RouteProvider
+from .provider import RouteProvider, DomainDNSProvider
 from .util import get_executable
 
 
@@ -112,3 +112,23 @@ class BSDRouteProvider(RouteProvider):
             # with BSD ifconfig. See example in default vpnc-script:
             #   https://gitlab.com/openconnect/vpnc-scripts/blob/https://gitlab.com/openconnect/vpnc-scripts/blob/921e8760/vpnc-script#L193
             self._ifconfig(device, 'inet', address.ip, address.ip, 'netmask', '255.255.255.255')
+
+
+class MacDomainDNSProvider(DomainDNSProvider):
+    def configure_domain_vpn_dns(self, domains, nameservers):
+        if not os.path.exists('/etc/resolver'):
+            os.makedirs('/etc/resolver')
+        for domain in domains:
+            resolver_file_name = "/etc/resolver/{0}".format(domain)
+            resolver_file = open(resolver_file_name, "a")
+            for nameserver in nameservers:
+                resolver_file.write("nameserver {}\n".format(nameserver))
+            resolver_file.close()
+
+    def deconfigure_domain_vpn_dns(self, domains, nameservers):
+        for domain in domains:
+            resolver_file_name = "/etc/resolver/{0}".format(domain)
+            if os.path.exists(resolver_file_name):
+                os.remove(resolver_file_name)
+        if len(os.listdir('/etc/resolver')) == 0:
+            os.removedirs('/etc/resolver')
