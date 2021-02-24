@@ -68,6 +68,7 @@ class Iproute2Provider(RouteProvider):
 
     def flush_cache(self):
         self._iproute('route', 'flush', 'cache')
+        self._iproute('-6', 'route', 'flush', 'cache')
 
     def get_link_info(self, device):
         return self._iproute('link', 'show', device)
@@ -76,7 +77,8 @@ class Iproute2Provider(RouteProvider):
         self._iproute('link', 'set', state, dev=device, mtu=mtu)
 
     def add_address(self, device, address):
-        self._iproute('address', 'add', address, dev=device)
+        flag = '-6' if address.version == 6 else '-4'
+        self._iproute(flag, 'address', 'add', address, dev=device)
 
 
 class IptablesProvider(FirewallProvider):
