@@ -42,12 +42,13 @@ def get_default_providers():
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
-        from .mac import PsProvider, BSDRouteProvider, MacSplitDNSProvider
+        from .mac import PsProvider, BSDRouteProvider, MacSplitDNSProvider, PfFirewallProvider
         from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
         return dict(
             process = PsProvider,
             route = BSDRouteProvider,
+            firewall = PfFirewallProvider,
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             domain_vpn_dns = MacSplitDNSProvider,

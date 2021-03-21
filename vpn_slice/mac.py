@@ -4,7 +4,7 @@ import subprocess
 from ipaddress import ip_network, ip_interface
 
 from .posix import PosixProcessProvider
-from .provider import RouteProvider, SplitDNSProvider
+from .provider import RouteProvider, SplitDNSProvider, FirewallProvider
 from .util import get_executable
 
 
@@ -131,3 +131,90 @@ class MacSplitDNSProvider(SplitDNSProvider):
                 os.remove(resolver_file_name)
         if not len(os.listdir('/etc/resolver')):
             os.removedirs('/etc/resolver')
+
+
+class PfFirewallProvider(FirewallProvider):
+    def __init__(self):
+        self.pfctl = get_executable('/sbin/pfctl')
+
+    _PF_TOKEN_RE = re.compile(r'Token : (\d+)')
+    _PF_ANCHOR = 'vpn_slice'
+    _PF_CONF_FILE = '/etc/pf.conf'
+
+    def _reload_conf(self):
+        cmd = [self.pfctl, '-f', self._PF_CONF_FILE]
+        p = subprocess.Popen(cmd, universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        output, stderr = p.communicate()
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(p.returncode, cmd, output=output, stderr=stderr)
+
+    def configure_firewall(self, device):
+        # Enabled Packet Filter - increments a reference counter for processes that need packet filter enabled
+        cl = [self.pfctl, '-E']
+        p = subprocess.Popen(cl, universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        output, stderr = p.communicate()
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
+
+        # store token returned to later be able to decrement the reference counter correctly
+        enable_token = None
+
+        for line in stderr.splitlines():
+            match = self._PF_TOKEN_RE.search(line)
+            if match:
+                enable_token = match.group(1)
+
+        if not enable_token:
+            print("WARNING: failed to get pf enable reference token, packet filter might not shutdown correctly")
+
+        anchor = f'{self._PF_ANCHOR}/{device}'
+        # add anchor to generate rules with
+        with open(self._PF_CONF_FILE, 'a') as file:
+            file.write(f'anchor "{anchor}" # vpn-slice-{device} AUTOCREATED {enable_token}\n')
+
+        # reload config file
+        self._reload_conf()
+
+        p = subprocess.Popen([self.pfctl, '-a', anchor, '-f', '-'],
+                             universal_newlines=True,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stdin=subprocess.PIPE)
+
+        rules = f'''pass out on {device} all keep state
+        block drop in on {device} all
+        '''
+
+        output, stderr = p.communicate(rules)
+        if p.returncode != 0:
+            raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
+
+    def deconfigure_firewall(self, device):
+        # disable anchor
+        subprocess.check_call([self.pfctl, '-a', f'{self._PF_ANCHOR}/{device}', '-F', 'all'])
+
+        with open(self._PF_CONF_FILE, 'r') as file:
+            lines = file.readlines()
+
+        enable_tokens = []
+        rule_re = re.compile(rf'vpn-slice-{device} AUTOCREATED (\d+)')
+        with open(self._PF_CONF_FILE, 'w') as file:
+            for line in lines:
+                match = rule_re.search(line)
+                if match:
+                    enable_tokens.append(match.group(1))
+                else:
+                    file.write(line)
+
+        # decrement pf enable reference counter
+        for token in enable_tokens:
+            cl = [self.pfctl, '-X', token]
+            p = subprocess.Popen(cl, universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            output, stderr = p.communicate()
+            if p.returncode != 0:
+                raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
+
+        if not enable_tokens:
+            print("WARNING: failed to get pf enable reference token, packet filter might not have shutdown correctly")
+
+        self._reload_conf()
