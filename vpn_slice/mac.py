@@ -167,10 +167,10 @@ class PfFirewallProvider(FirewallProvider):
         if not enable_token:
             print("WARNING: failed to get pf enable reference token, packet filter might not shutdown correctly")
 
-        anchor = f'{self._PF_ANCHOR}/{device}'
+        anchor = '{}/{}'.format(self._PF_ANCHOR, device)
         # add anchor to generate rules with
         with open(self._PF_CONF_FILE, 'a') as file:
-            file.write(f'anchor "{anchor}" # vpn-slice-{device} AUTOCREATED {enable_token}\n')
+            file.write('anchor "{}" # vpn-slice-{} AUTOCREATED {}\n'.format(anchor, device, enable_token))
 
         # reload config file
         self._reload_conf()
@@ -181,9 +181,9 @@ class PfFirewallProvider(FirewallProvider):
                              stdout=subprocess.PIPE,
                              stdin=subprocess.PIPE)
 
-        rules = f'''pass out on {device} all keep state
-        block drop in on {device} all
-        '''
+        rules = '''pass out on {0} all keep state
+        block drop in on {0} all
+        '''.format(device)
 
         output, stderr = p.communicate(rules)
         if p.returncode != 0:
@@ -191,13 +191,14 @@ class PfFirewallProvider(FirewallProvider):
 
     def deconfigure_firewall(self, device):
         # disable anchor
-        subprocess.check_call([self.pfctl, '-a', f'{self._PF_ANCHOR}/{device}', '-F', 'all'])
+        anchor = '{}/{}'.format(self._PF_ANCHOR, device)
+        subprocess.check_call([self.pfctl, '-a', anchor, '-F', 'all'])
 
         with open(self._PF_CONF_FILE, 'r') as file:
             lines = file.readlines()
 
         enable_tokens = []
-        rule_re = re.compile(rf'vpn-slice-{device} AUTOCREATED (\d+)')
+        rule_re = re.compile(r'vpn-slice-{} AUTOCREATED (\d+)'.format(device))
         with open(self._PF_CONF_FILE, 'w') as file:
             for line in lines:
                 match = rule_re.search(line)
