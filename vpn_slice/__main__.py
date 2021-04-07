@@ -42,17 +42,21 @@ def get_default_providers():
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
+        from platform import release
+        from distutils.version import LooseVersion
         from .mac import PsProvider, BSDRouteProvider, MacSplitDNSProvider, PfFirewallProvider
         from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
-        return dict(
-            process = PsProvider,
-            route = BSDRouteProvider,
-            firewall = PfFirewallProvider,
-            dns = DNSPythonProvider or DigProvider,
-            hosts = PosixHostsFileProvider,
-            domain_vpn_dns = MacSplitDNSProvider,
+        ps = dict(
+            process=PsProvider,
+            route=BSDRouteProvider,
+            dns=DNSPythonProvider or DigProvider,
+            hosts=PosixHostsFileProvider,
+            domain_vpn_dns=MacSplitDNSProvider,
         )
+        if LooseVersion(release()) >= LooseVersion('10.6'):
+            ps['firewall'] = PfFirewallProvider
+        return ps
     elif platform.startswith('freebsd'):
         from .mac import BSDRouteProvider
         from .freebsd import ProcfsProvider
