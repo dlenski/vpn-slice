@@ -47,16 +47,14 @@ def get_default_providers():
         from .mac import PsProvider, BSDRouteProvider, MacSplitDNSProvider, PfFirewallProvider
         from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
-        ps = dict(
+        return dict(
             process=PsProvider,
             route=BSDRouteProvider,
             dns=DNSPythonProvider or DigProvider,
             hosts=PosixHostsFileProvider,
             domain_vpn_dns=MacSplitDNSProvider,
+            firewall = PfFirewallProvider if release() >= LooseVersion('10.6') else None,
         )
-        if LooseVersion(release()) >= LooseVersion('10.6'):
-            ps['firewall'] = PfFirewallProvider
-        return ps
     elif platform.startswith('freebsd'):
         from .mac import BSDRouteProvider
         from .freebsd import ProcfsProvider
