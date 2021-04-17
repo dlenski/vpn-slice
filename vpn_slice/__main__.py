@@ -7,7 +7,7 @@ import argparse
 from enum import Enum
 from itertools import chain, zip_longest
 from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
-from time import sleep
+from time import sleep, time
 from random import randint, choice, shuffle
 
 try:
@@ -82,6 +82,13 @@ def net_or_host_param(s):
             return ip_network(s, strict=False)
         except ValueError:
             return s
+
+
+def file_path_param(path):
+    if isinstance(path, str) and os.path.exists(path):
+        return path
+    else:
+        raise ValueError("path not valid")
 
 
 def names_for(host, domains, short=True, long=True):
@@ -423,8 +430,9 @@ def parse_env(environ=os.environ):
 
 # Parse command-line arguments and environment
 def parse_args_and_env(args=None, environ=os.environ):
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(fromfile_prefix_chars='@')
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
+    p.add_argument('-c', '--config', default=None, type=file_path_param, help='Path to List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
     p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     p.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
@@ -453,6 +461,16 @@ def parse_args_and_env(args=None, environ=os.environ):
     env = parse_env(environ)
     return p, args, env
 
+def parse_routes_from_list(args, routes):
+    for x in routes:
+        if isinstance(x, (IPv4Network, IPv6Network)):
+            args.subnets.append(x)
+        elif isinstance(x, str):
+            args.hosts.append(x)
+        else:
+            hosts, ip = x
+            args.aliases.setdefault(ip, []).extend(hosts)
+
 def finalize_args_and_env(args, env):
     global providers
 
@@ -476,14 +494,18 @@ def finalize_args_and_env(args, env):
     args.exc_subnets = []
     args.hosts = []
     args.aliases = {}
-    for x in args.routes:
-        if isinstance(x, (IPv4Network, IPv6Network)):
-            args.subnets.append(x)
-        elif isinstance(x, str):
-            args.hosts.append(x)
-        else:
-            hosts, ip = x
-            args.aliases.setdefault(ip, []).extend(hosts)
+    parse_routes_from_list(args, args.routes)
+    begin_time = time()
+    if args.config is not None:
+        print("got config file: {0}".format(args.config))
+        with open(args.config, 'r') as file:
+            routes_from_file = []
+            for line in file:
+                routes_from_file.append(net_or_host_param(line.rstrip()))
+            parse_routes_from_list(args, routes_from_file)
+    end_time = time()
+    print("elapsed time: {0} s; number lines: {1}".format(end_time-begin_time, len(args.subnets) + len(args.hosts)))
+    
     if args.route_internal:
         if env.network: args.subnets.append(env.network)
         if env.network6: args.subnets.append(env.network6)
