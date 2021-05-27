@@ -3,7 +3,7 @@ import subprocess
 import stat
 
 from .posix import PosixProcessProvider
-from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider
+from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider, SplitDNSProvider
 from .util import get_executable
 
 
@@ -108,3 +108,32 @@ class CheckTunDevProvider(TunnelPrepProvider):
     def prepare_tunnel(self):
         if not os.access('/dev/net/tun', os.R_OK | os.W_OK):
             raise OSError("can't read and write /dev/net/tun")
+
+class LinuxSplitDNSProvider(SplitDNSProvider):
+    def __init__(self):
+        self.resolvconf = get_executable('/usr/bin/resolvconf')
+
+    def _resolvconf(self, *args):
+        cl = [self.resolvconf]
+        cl.extend(args)
+        subprocess.check_call(cl)
+
+    def configure_domain_vpn_dns(self, domains, nameservers, tundev):
+        cl = [self.resolvconf]
+        cl.extend(['-p', '-a', tundev])
+
+        p = subprocess.Popen(cl, stdin=subprocess.PIPE)
+
+        p.stdin.write("search ".encode('utf-8'))
+
+        for domain in domains:
+            p.stdin.write ((domain+" ").encode('utf-8'))
+        p.stdin.write("\n".encode('utf-8'))
+
+        for nameserver in nameservers:
+            p.stdin.write(("nameserver " + str(nameserver) + "\n").encode('utf-8'))
+
+        p.stdin.close()
+
+    def deconfigure_domain_vpn_dns(self, domains, nameservers, tundev):
+        self._resolvconf('-d', tundev)
