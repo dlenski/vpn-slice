@@ -516,7 +516,12 @@ def main(args=None, environ=os.environ):
                 providers[pn] = pv()
             except Exception as e:
                 print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
-        missing_required = {p for p in ('route', 'process', 'hosts', 'dns') if p not in providers}
+        missing_required = {p for p in ('route', 'process', 'dns') if p not in providers}
+        if args.ns_hosts and ((args.hosts or args.aliases) and args.host_names):
+            # The hosts provider is required unless:
+            #   1) '--no-ns-hosts --no-host-names' specified, or
+            #   2) '--no-ns-hosts' specified, but neither hosts nor aliases specified
+            missing_required.add('hosts')
         if missing_required:
             raise RuntimeError("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
 
