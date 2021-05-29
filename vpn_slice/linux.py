@@ -134,6 +134,7 @@ class LinuxSplitDNSProvider(SplitDNSProvider):
             p.stdin.write(("nameserver " + str(nameserver) + "\n").encode('utf-8'))
 
         p.stdin.close()
+        p.wait()
 
     def deconfigure_domain_vpn_dns(self, domains, nameservers, tundev):
         self._resolvconf('-d', tundev)
