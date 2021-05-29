@@ -127,9 +127,10 @@ def do_disconnect(env, args):
                 if args.verbose:
                     print("Killed pid %d from %s" % (pid, pidfile), file=stderr)
 
-    removed = providers.hosts.write_hosts({}, args.name)
-    if args.verbose:
-        print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
+    if 'hosts' in providers:
+        removed = providers.hosts.write_hosts({}, args.name)
+        if args.verbose:
+            print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
 
     # delete explicit route to gateway
     try:
@@ -517,7 +518,7 @@ def main(args=None, environ=os.environ):
             except Exception as e:
                 print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
         missing_required = {p for p in ('route', 'process', 'dns') if p not in providers}
-        if args.ns_hosts and ((args.hosts or args.aliases) and args.host_names):
+        if args.ns_hosts or ((args.hosts or args.aliases) and args.host_names):
             # The hosts provider is required unless:
             #   1) '--no-ns-hosts --no-host-names' specified, or
             #   2) '--no-ns-hosts' specified, but neither hosts nor aliases specified
