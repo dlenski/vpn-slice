@@ -262,24 +262,25 @@ def do_post_connect(env, args):
             for ip, names in ns_names:
                 print("  %s = %s" % (ip, ', '.join(map(str, names))), file=stderr)
 
-    if args.verbose:
-        print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
-    providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
-    for host in args.hosts:
-        try:
-           ips = providers.dns.lookup_host(host)
-        except Exception as e:
-            print("WARNING: Lookup for %s on VPN DNS servers failed:\n\t%s" % (host, e), file=stderr)
-        else:
-            if ips is None:
-                print("WARNING: Lookup for %s on VPN DNS servers returned nothing." % host, file=stderr)
+    if args.hosts:
+        if args.verbose:
+            print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
+        providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
+        for host in args.hosts:
+            try:
+               ips = providers.dns.lookup_host(host)
+            except Exception as e:
+                print("WARNING: Lookup for %s on VPN DNS servers failed:\n\t%s" % (host, e), file=stderr)
             else:
-                if args.verbose:
-                    print("  %s = %s" % (host, ', '.join(map(str, ips))), file=stderr)
-                ip_routes.update(ips)
-                if args.host_names:
-                    names = names_for(host, args.domain, args.short_names)
-                    host_map.extend((ip, names) for ip in ips)
+                if ips is None:
+                    print("WARNING: Lookup for %s on VPN DNS servers returned nothing." % host, file=stderr)
+                else:
+                    if args.verbose:
+                        print("  %s = %s" % (host, ', '.join(map(str, ips))), file=stderr)
+                    ip_routes.update(ips)
+                    if args.host_names:
+                        names = names_for(host, args.domain, args.short_names)
+                        host_map.extend((ip, names) for ip in ips)
     for ip, aliases in args.aliases.items():
         host_map.append((ip, aliases))
 
@@ -520,7 +521,7 @@ def main(args=None, environ=os.environ):
                 print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
 
         # Fail if necessary providers are missing
-        required = {'route', 'process', 'dns'}
+        required = {'route', 'process'}
         # The hosts provider is required unless:
         #   1) '--no-ns-hosts --no-host-names' specified, or
         #   2) '--no-ns-hosts' specified, but neither hosts nor aliases specified
@@ -530,6 +531,11 @@ def main(args=None, environ=os.environ):
             pass
         else:
             required.add('hosts')
+        # The DNS provider is required if:
+        #   1) Any hosts are specified
+        #   2) '--prevent-idle-timeout' is specified
+        if args.hosts or args.prevent_idle_timeout:
+            required.add('dns')
         missing_required = {p for p in required if p not in providers}
         if missing_required:
             raise RuntimeError("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
