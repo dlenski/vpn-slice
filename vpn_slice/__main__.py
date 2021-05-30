@@ -543,35 +543,6 @@ def main(args=None, environ=os.environ):
         # Finalize arguments that depend on providers
         finalize_args_and_env(args, env)
 
-        if env.myaddr6 or env.netmask6:
-            print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
-        if args.dump:
-            exe = providers.process.pid2exe(args.ppid)
-            caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
-
-            print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
-            width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
-            for var, envar, *rest in vpncenv:
-                if envar in environ:
-                    pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
-                    print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
-            if env.splitinc:
-                print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
-            if env.splitexc:
-                print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
-            if args.subnets:
-                print('Complete set of subnets to include in VPN routes:', file=stderr)
-                print('  ' + '\n  '.join(map(str, args.subnets)))
-            if args.exc_subnets:
-                print('Complete set of subnets to exclude from VPN routes:', file=stderr)
-                print('  ' + '\n  '.join(map(str, args.exc_subnets)))
-            if args.aliases:
-                print('Complete set of host aliases to add /etc/hosts entries for:', file=stderr)
-                print('  ' + '\n  '.join(args.aliases))
-            if args.hosts:
-                print('Complete set of host names to include in VPN routes after DNS lookup%s:' % (' (and add /etc/hosts entries for)' if args.host_names else ''), file=stderr)
-                print('  ' + '\n  '.join(args.hosts))
-
     except Exception as e:
         if args.self_test:
             print('******************************************************************************************', file=stderr)
@@ -585,6 +556,35 @@ def main(args=None, environ=os.environ):
             print('*** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***', file=stderr)
             print('***************************************************************************', file=stderr)
             raise SystemExit()
+
+    if env.myaddr6 or env.netmask6:
+        print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
+    if args.dump:
+        exe = providers.process.pid2exe(args.ppid)
+        caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
+
+        print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
+        width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
+        for var, envar, *rest in vpncenv:
+            if envar in environ:
+                pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
+                print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
+        if env.splitinc:
+            print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
+        if env.splitexc:
+            print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_EXC_*', 'splitexc', env.splitexc), file=stderr)
+        if args.subnets:
+            print('Complete set of subnets to include in VPN routes:', file=stderr)
+            print('  ' + '\n  '.join(map(str, args.subnets)))
+        if args.exc_subnets:
+            print('Complete set of subnets to exclude from VPN routes:', file=stderr)
+            print('  ' + '\n  '.join(map(str, args.exc_subnets)))
+        if args.aliases:
+            print('Complete set of host aliases to add /etc/hosts entries for:', file=stderr)
+            print('  ' + '\n  '.join(args.aliases))
+        if args.hosts:
+            print('Complete set of host names to include in VPN routes after DNS lookup%s:' % (' (and add /etc/hosts entries for)' if args.host_names else ''), file=stderr)
+            print('  ' + '\n  '.join(args.hosts))
 
     if env.reason is None:
         raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
