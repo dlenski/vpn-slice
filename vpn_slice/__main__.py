@@ -458,21 +458,10 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--ppid', type=int, help='PID of calling process (normally autodetected, when using openconnect or vpnc)')
     args = p.parse_args(args)
     env = parse_env(environ)
-    return p, args, env
-
-def finalize_args_and_env(args, env):
-    global providers
 
     # use the tunnel device as the VPN name if unspecified
     if args.name is None:
         args.name = env.tundev
-
-    # autodetect parent or grandparent process (skipping intermediary shell)
-    if args.ppid is None:
-        args.ppid = providers.process.ppid_of(None)
-        exe = providers.process.pid2exe(args.ppid)
-        if exe and os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
-            args.ppid = providers.process.ppid_of(args.ppid)
 
     # use the list from the env if --domain wasn't specified, but start with an
     # empty list if it was specified; hence can't use 'default' here:
@@ -502,6 +491,17 @@ def finalize_args_and_env(args, env):
     if args.vpn_domains is not None:
         args.vpn_domains = str.split(args.vpn_domains, ',')
 
+    return p, args, env
+
+def finalize_args_and_env(args, env):
+    global providers
+
+    # autodetect parent or grandparent process (skipping intermediary shell)
+    if args.ppid is None:
+        args.ppid = providers.process.ppid_of(None)
+        exe = providers.process.pid2exe(args.ppid)
+        if exe and os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
+            args.ppid = providers.process.ppid_of(args.ppid)
 
 def main(args=None, environ=os.environ):
     global providers
@@ -509,6 +509,7 @@ def main(args=None, environ=os.environ):
     try:
         p, args, env = parse_args_and_env(args, environ)
 
+        # Set platform-specific providers
         providers = slurpy()
         for pn, pv in get_default_providers().items():
             try:
@@ -517,15 +518,23 @@ def main(args=None, environ=os.environ):
                 providers[pn] = pv()
             except Exception as e:
                 print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
-        missing_required = {p for p in ('route', 'process', 'dns') if p not in providers}
-        if args.ns_hosts or ((args.hosts or args.aliases) and args.host_names):
-            # The hosts provider is required unless:
-            #   1) '--no-ns-hosts --no-host-names' specified, or
-            #   2) '--no-ns-hosts' specified, but neither hosts nor aliases specified
-            missing_required.add('hosts')
+
+        # Fail if necessary providers are missing
+        required = {'route', 'process', 'dns'}
+        # The hosts provider is required unless:
+        #   1) '--no-ns-hosts --no-host-names' specified, or
+        #   2) '--no-ns-hosts' specified, but neither hosts nor aliases specified
+        if not args.ns_hosts and not args.host_names:
+            pass
+        elif not args.ns_hosts and not args.hosts and not args.aliases:
+            pass
+        else:
+            required.add('hosts')
+        missing_required = {p for p in required if p not in providers}
         if missing_required:
             raise RuntimeError("Aborting because providers for %s are required; use --help for more information" % ' '.join(missing_required))
 
+        # Finalize arguments that depend on providers
         finalize_args_and_env(args, env)
 
         if env.myaddr6 or env.netmask6:
