@@ -449,7 +449,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g = p.add_argument_group('Nameserver options')
     g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
-    g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma seperated domains to query with vpn dns")
+    g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with vpn dns")
     g = p.add_argument_group('Debugging options')
     g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
     g.add_argument('-v','--verbose', default=0, action='count', help="Explain what %(prog)s is doing")
