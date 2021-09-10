@@ -302,7 +302,6 @@ def do_post_connect(env, args):
 
     # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
-        dev = env.tundev
         dns = (env.dns + env.dns6)
         idle_timeout = env.idle_timeout
         setproctitle('vpn-slice --prevent-idle-timeout --name %s' % args.name)
@@ -434,8 +433,8 @@ def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, included subnets (e.g. 192.168.0.0/24), excluded subnets (e.g. %%8.0.0.0/8), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
-    p.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
-    p.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
+    g.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
+    g.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
     g = p.add_argument_group('Informational options')
     g.add_argument('--banner', action='store_true', help='Print banner message (default is to suppress it)')
     g = p.add_argument_group('Routing and hostname options')
