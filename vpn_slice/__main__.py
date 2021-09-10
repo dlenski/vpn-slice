@@ -302,7 +302,6 @@ def do_post_connect(env, args):
 
     # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
-        dev = env.tundev
         dns = (env.dns + env.dns6)
         idle_timeout = env.idle_timeout
         setproctitle('vpn-slice --prevent-idle-timeout --name %s' % args.name)
