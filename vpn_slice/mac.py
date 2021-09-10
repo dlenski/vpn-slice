@@ -1,7 +1,7 @@
 import os
 import re
 import subprocess
-from ipaddress import ip_network, ip_interface
+from ipaddress import ip_interface
 
 from .posix import PosixProcessProvider
 from .provider import RouteProvider, SplitDNSProvider, FirewallProvider
