@@ -148,7 +148,7 @@ def do_disconnect(env, args):
     if args.vpn_domains is not None:
         try:
             providers.domain_vpn_dns.deconfigure_domain_vpn_dns(args.vpn_domains, env.dns)
-        except:
+        except OSError:
             print("WARNING: failed to deconfigure domains vpn dns", file=stderr)
 
 
