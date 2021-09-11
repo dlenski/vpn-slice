@@ -154,6 +154,32 @@ def do_disconnect(env, args):
             print("WARNING: failed to deconfigure domains vpn dns", file=stderr)
 
 
+def do_attempt_reconnect(env, args):
+    # set explicit route to gateway, avoiding loopback through tunnel
+    if not env.gateway:
+        print("WARNING: No gateway address.", file=stderr)
+    elif env.gateway.is_loopback:
+        print("WARNING: Gateway address is loopback (%s); probably a local proxy.", file=stderr)
+    else:
+        # avoid loopback routes through tunnel
+        gwrs = [gwr for gwr in providers.route.get_all_routes(env.gateway) if gwr.get('dev') != env.tundev]
+        if not gwrs:
+            print("WARNING: no routes to VPN gateway found %s; cannot set explicit route to it." % env.gateway)
+            return
+
+        for gwr in gwrs:
+            try:
+                # We do not want to use 'replace', since a route to the gateway that already
+                # exists is mostly likely the correct one (e.g. the case of a reconnect attempt
+                # after dead-peer detection, but no change in the underlying network devices).
+                providers.route.add_route(env.gateway, **gwr)
+            except CalledProcessError:
+                pass
+            else:
+                if args.verbose > 1:
+                    print("Reset explicit route to VPN gateway %s (%s)" % (env.gateway, ', '.join('%s %s' % kv for kv in gwr.items())), file=stderr)
+
+
 def do_connect(env, args):
     global providers
     if args.banner and env.banner:
@@ -598,8 +624,10 @@ def main(args=None, environ=os.environ):
         do_pre_init(env, args)
     elif env.reason == reasons.disconnect:
         do_disconnect(env, args)
-    elif env.reason in (reasons.reconnect, reasons.attempt_reconnect):
-        # FIXME: is there anything that reconnect or attempt_reconnect /should/ do
+    elif env.reason == reasons.attempt_reconnect:
+        do_attempt_reconnect(env, args)
+    elif env.reason == reasons.reconnect:
+        # FIXME: is there anything that reconnect /should/ do
         # on a modern system (Linux) which automatically removes routes to
         # a tunnel adapter that has been removed? I am not clear on whether
         # any other behavior is potentially useful.
