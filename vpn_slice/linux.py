@@ -1,6 +1,6 @@
 import os
-import subprocess
 import stat
+import subprocess
 
 from .posix import PosixProcessProvider
 from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider
@@ -34,16 +34,16 @@ class Iproute2Provider(RouteProvider):
             if v is not None:
                 cl.extend((k, str(v)))
 
-        if args[:2]==('route','get'):
+        if args[:2] == ('route', 'get'):
             output_start, keys = 1, ('via', 'dev', 'src', 'mtu')
-        elif args[:2]==('link','show'):
+        elif args[:2] == ('link', 'show'):
             output_start, keys = 3, ('state', 'mtu')
         else:
             output_start = None
 
         if output_start is not None:
             words = subprocess.check_output(cl, universal_newlines=True).split()
-            if args[:2]==('route','get') and words[0] in ('broadcast', 'multicast', 'local', 'unreachable'):
+            if args[:2] == ('route', 'get') and words[0] in ('broadcast', 'multicast', 'local', 'unreachable'):
                 output_start += 1
             return {words[i]: words[i + 1] for i in range(output_start, len(words), 2) if words[i] in keys}
         else:
@@ -104,7 +104,8 @@ class CheckTunDevProvider(TunnelPrepProvider):
         node = '/dev/net/tun'
         if not os.path.exists(node):
             os.makedirs(os.path.dirname(node), exist_ok=True)
-            os.mknod(node, mode=0o640 | stat.S_IFCHR, device = os.makedev(10, 200))
+            os.mknod(node, mode=0o640 | stat.S_IFCHR, device=os.makedev(10, 200))
+
     def prepare_tunnel(self):
         if not os.access('/dev/net/tun', os.R_OK | os.W_OK):
             raise OSError("can't read and write /dev/net/tun")

@@ -19,7 +19,7 @@ class DigProvider(DNSProvider):
         search_domains = self.search_domains
 
         if not bind_addresses:
-            some_cls = [ self.base_cl + ['@{!s}'.format(dns) for dns in dns_servers] ]
+            some_cls = [self.base_cl + ['@{!s}'.format(dns) for dns in dns_servers]]
             field_requests = [hostname, 'A', hostname, 'AAAA']
         else:
             some_cls = []

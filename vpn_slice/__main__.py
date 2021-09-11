@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 
 from __future__ import print_function
-from sys import stderr, platform
-import os
+
 import argparse
+import os
 from enum import Enum
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface, IPv6Network, ip_address, ip_network
 from itertools import chain, zip_longest
-from ipaddress import ip_network, ip_address, IPv4Address, IPv4Network, IPv6Address, IPv6Network, IPv6Interface
-from time import sleep
-from random import randint, choice, shuffle
+from random import choice, randint, shuffle
 from subprocess import CalledProcessError
+from sys import platform, stderr
+from time import sleep
 
 try:
     from setproctitle import setproctitle
@@ -20,19 +21,18 @@ except ImportError:
 def tagged(iter, tag):
     return zip_longest(iter, (), fillvalue=tag)
 
-from .version import __version__
 from .util import slurpy
+from .version import __version__
 
 
 def get_default_providers():
-    global platform
     try:
         from .dnspython import DNSPythonProvider
     except ImportError:
         DNSPythonProvider = None
 
     if platform.startswith('linux'):
-        from .linux import ProcfsProvider, Iproute2Provider, IptablesProvider, CheckTunDevProvider
+        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider
         from .posix import DigProvider, PosixHostsFileProvider
         return dict(
             process = ProcfsProvider,
@@ -43,11 +43,12 @@ def get_default_providers():
             prep = CheckTunDevProvider,
         )
     elif platform.startswith('darwin'):
-        from platform import release
         from distutils.version import LooseVersion
-        from .mac import PsProvider, BSDRouteProvider, MacSplitDNSProvider, PfFirewallProvider
-        from .posix import PosixHostsFileProvider
+        from platform import release
+
         from .dnspython import DNSPythonProvider
+        from .mac import BSDRouteProvider, MacSplitDNSProvider, PfFirewallProvider, PsProvider
+        from .posix import PosixHostsFileProvider
         return dict(
             process=PsProvider,
             route=BSDRouteProvider,
@@ -57,10 +58,10 @@ def get_default_providers():
             firewall = PfFirewallProvider if release() >= LooseVersion('10.6') else None,
         )
     elif platform.startswith('freebsd'):
-        from .mac import BSDRouteProvider
-        from .freebsd import ProcfsProvider
-        from .posix import PosixHostsFileProvider
         from .dnspython import DNSPythonProvider
+        from .freebsd import ProcfsProvider
+        from .mac import BSDRouteProvider
+        from .posix import PosixHostsFileProvider
         return dict(
             process = ProcfsProvider,
             route = BSDRouteProvider,
@@ -269,7 +270,7 @@ def do_post_connect(env, args):
         providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
         for host in args.hosts:
             try:
-               ips = providers.dns.lookup_host(host)
+                ips = providers.dns.lookup_host(host)
             except Exception as e:
                 print("WARNING: Lookup for %s on VPN DNS servers failed:\n\t%s" % (host, e), file=stderr)
             else:
@@ -303,7 +304,7 @@ def do_post_connect(env, args):
 
     # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
-        dns = (env.dns + env.dns6)
+        dns = env.dns + env.dns6
         idle_timeout = env.idle_timeout
         setproctitle('vpn-slice --prevent-idle-timeout --name %s' % args.name)
         if args.verbose:
@@ -323,7 +324,7 @@ def do_post_connect(env, args):
             # pick random host or IP to look up without leaking any new information
             # about what we do/don't access within the VPN
             pool = args.hosts
-            pool += map(str, chain(env.dns, env.dns6, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen==r.max_prefixlen)))
+            pool += map(str, chain(env.dns, env.dns6, env.nbns, ((r.network_address) for r in args.subnets if r.prefixlen == r.max_prefixlen)))
             dummy = choice(pool)
             shuffle(dns)
             if args.verbose > 1:
@@ -339,27 +340,27 @@ def do_post_connect(env, args):
 # into a more Pythonic form (these are take from vpnc-script)
 reasons = Enum('reasons', 'pre_init connect disconnect reconnect attempt_reconnect')
 vpncenv = [
-    ('reason','reason',lambda x: reasons[x.replace('-','_')]),
-    ('gateway','VPNGATEWAY',ip_address),
-    ('tundev','TUNDEV',str),
-    ('domain','CISCO_DEF_DOMAIN',lambda x: x.split(),[]),
-    ('splitdns','CISCO_SPLIT_DNS',lambda x: x.split(','),[]),
-    ('banner','CISCO_BANNER',str),
-    ('myaddr','INTERNAL_IP4_ADDRESS',IPv4Address), # a.b.c.d
-    ('mtu','INTERNAL_IP4_MTU',int),
-    ('netmask','INTERNAL_IP4_NETMASK',IPv4Address), # a.b.c.d
-    ('netmasklen','INTERNAL_IP4_NETMASKLEN',int),
-    ('network','INTERNAL_IP4_NETADDR',IPv4Address), # a.b.c.d
-    ('dns','INTERNAL_IP4_DNS',lambda x: [ip_address(x) for x in x.split()],[]),
-    ('nbns','INTERNAL_IP4_NBNS',lambda x: [IPv4Address(x) for x in x.split()],[]),
-    ('myaddr6','INTERNAL_IP6_ADDRESS',IPv6Interface), # x:y::z or x:y::z/p
-    ('netmask6','INTERNAL_IP6_NETMASK',IPv6Interface), # x:y:z:: or x:y::z/p
-    ('dns6','INTERNAL_IP6_DNS',lambda x: [ip_address(x) for x in x.split()],[]),
-    ('nsplitinc','CISCO_SPLIT_INC',int,0),
-    ('nsplitexc','CISCO_SPLIT_EXC',int,0),
-    ('nsplitinc6','CISCO_IPV6_SPLIT_INC',int,0),
-    ('nsplitexc6','CISCO_IPV6_SPLIT_EXC',int,0),
-    ('idle_timeout','IDLE_TIMEOUT',int,600),
+    ('reason', 'reason', lambda x: reasons[x.replace('-', '_')]),
+    ('gateway', 'VPNGATEWAY', ip_address),
+    ('tundev', 'TUNDEV', str),
+    ('domain', 'CISCO_DEF_DOMAIN', lambda x: x.split(), []),
+    ('splitdns', 'CISCO_SPLIT_DNS', lambda x: x.split(','), []),
+    ('banner', 'CISCO_BANNER', str),
+    ('myaddr', 'INTERNAL_IP4_ADDRESS', IPv4Address),      # a.b.c.d
+    ('mtu', 'INTERNAL_IP4_MTU', int),
+    ('netmask', 'INTERNAL_IP4_NETMASK', IPv4Address),     # a.b.c.d
+    ('netmasklen', 'INTERNAL_IP4_NETMASKLEN', int),
+    ('network', 'INTERNAL_IP4_NETADDR', IPv4Address),     # a.b.c.d
+    ('dns', 'INTERNAL_IP4_DNS', lambda x: [ip_address(x) for x in x.split()], []),
+    ('nbns', 'INTERNAL_IP4_NBNS', lambda x: [IPv4Address(x) for x in x.split()], []),
+    ('myaddr6', 'INTERNAL_IP6_ADDRESS', IPv6Interface),   # x:y::z or x:y::z/p
+    ('netmask6', 'INTERNAL_IP6_NETMASK', IPv6Interface),  # x:y:z:: or x:y::z/p
+    ('dns6', 'INTERNAL_IP6_DNS', lambda x: [ip_address(x) for x in x.split()], []),
+    ('nsplitinc', 'CISCO_SPLIT_INC', int, 0),
+    ('nsplitexc', 'CISCO_SPLIT_EXC', int, 0),
+    ('nsplitinc6', 'CISCO_IPV6_SPLIT_INC', int, 0),
+    ('nsplitexc6', 'CISCO_IPV6_SPLIT_EXC', int, 0),
+    ('idle_timeout', 'IDLE_TIMEOUT', int, 600),
 ]
 
 def parse_env(environ=os.environ):
@@ -381,10 +382,10 @@ def parse_env(environ=os.environ):
         env.network = IPv4Network(env.network).supernet(new_prefix=env.netmasklen)
         if env.network.network_address != orig_netaddr:
             print("WARNING: IPv4 network %s/%d has host bits set, replacing with %s" % (orig_netaddr, env.netmasklen, env.network), file=stderr)
-        if env.network.netmask!=env.netmask:
+        if env.network.netmask != env.netmask:
             raise AssertionError("IPv4 network (INTERNAL_IP4_{{NETADDR,NETMASK}}) {ad}/{nm} does not match INTERNAL_IP4_NETMASKLEN={nml} (implies /{nmi})".format(
                 ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
-        assert env.network.netmask==env.netmask
+        assert env.network.netmask == env.netmask
 
     # Need to match behavior of original vpnc-script here
     # Examples:
@@ -393,7 +394,7 @@ def parse_env(environ=os.environ):
     #   3) INTERNAL_IP6_ADDRESS=2000::1, INTERNAL_IP6_NETMASK=unset      => interface of 2000::1/128, network of 2000::1/128
     if env.myaddr6 or env.netmask6:
         if not env.netmask6:
-            env.netmask6 = IPv6Network(env.myaddr6) # case 3 above, /128
+            env.netmask6 = IPv6Network(env.myaddr6)  # case 3 above, /128
         env.myaddr6 = IPv6Interface(env.netmask6)
         env.network6 = env.myaddr6.network
     else:
@@ -413,10 +414,10 @@ def parse_env(environ=os.environ):
         net = IPv4Network(ad).supernet(new_prefix=nml)
         if net.network_address != ad:
             print("WARNING: IPv4 split network (CISCO_SPLIT_%s_%d_{ADDR,MASK}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
-        if net.netmask!=nm:
+        if net.netmask != nm:
             raise AssertionError("IPv4 split network (CISCO_SPLIT_{pfx}_{n}_{{ADDR,MASK}}) {ad}/{nm} does not match CISCO_SPLIT_{pfx}_{n}_MASKLEN={nml} (implies /{nmi})".format(
                 pfx=pfx, n=n, ad=ad, nm=nm, nml=nml, nmi=net.netmask))
-        env['split'+pfx.lower()].append(net)
+        env['split' + pfx.lower()].append(net)
 
     for pfx, n in chain((('INC', n) for n in range(env.nsplitinc6)),
                         (('EXC', n) for n in range(env.nsplitexc6))):
@@ -425,7 +426,7 @@ def parse_env(environ=os.environ):
         net = IPv6Network(ad).supernet(new_prefix=nml)
         if net.network_address != ad:
             print("WARNING: IPv6 split network (CISCO_IPV6_SPLIT_%s_%d_{ADDR,MASKLEN}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
-        env['split'+pfx.lower()].append(net)
+        env['split' + pfx.lower()].append(net)
 
     return env
 
@@ -434,16 +435,16 @@ def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, included subnets (e.g. 192.168.0.0/24), excluded subnets (e.g. %%8.0.0.0/8), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
-    g.add_argument('-k','--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
-    g.add_argument('-K','--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
+    p.add_argument('-k', '--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
+    p.add_argument('-K', '--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
     g = p.add_argument_group('Informational options')
     g.add_argument('--banner', action='store_true', help='Print banner message (default is to suppress it)')
     g = p.add_argument_group('Routing and hostname options')
-    g.add_argument('-i','--incoming', action='store_true', help='Allow incoming traffic from VPN (default is to block)')
-    g.add_argument('-n','--name', default=None, help='Name of this VPN (default is $TUNDEV)')
-    g.add_argument('-d','--domain', action='append', help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
-    g.add_argument('-I','--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP*_NET*")
-    g.add_argument('-S','--route-splits', action='store_true', help="Add route for VPN's split-tunnel subnets (passed in via $CISCO_SPLIT_*)")
+    g.add_argument('-i', '--incoming', action='store_true', help='Allow incoming traffic from VPN (default is to block)')
+    g.add_argument('-n', '--name', default=None, help='Name of this VPN (default is $TUNDEV)')
+    g.add_argument('-d', '--domain', action='append', help='Search domain inside the VPN (default is $CISCO_DEF_DOMAIN)')
+    g.add_argument('-I', '--route-internal', action='store_true', help="Add route for VPN's default subnet (passed in as $INTERNAL_IP*_NET*")
+    g.add_argument('-S', '--route-splits', action='store_true', help="Add route for VPN's split-tunnel subnets (passed in via $CISCO_SPLIT_*)")
     g.add_argument('--no-host-names', action='store_false', dest='host_names', default=True, help='Do not add either short or long hostnames to /etc/hosts')
     g.add_argument('--no-short-names', action='store_false', dest='short_names', default=True, help="Only add long/fully-qualified domain names to /etc/hosts")
     g = p.add_argument_group('Nameserver options')
@@ -452,9 +453,9 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with vpn dns")
     g = p.add_argument_group('Debugging options')
     g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
-    g.add_argument('-v','--verbose', default=0, action='count', help="Explain what %(prog)s is doing")
-    p.add_argument('-V','--version', action='version', version='%(prog)s ' + __version__)
-    g.add_argument('-D','--dump', action='store_true', help='Dump environment variables passed by caller')
+    g.add_argument('-v', '--verbose', default=0, action='count', help="Explain what %(prog)s is doing")
+    p.add_argument('-V', '--version', action='version', version='%(prog)s ' + __version__)
+    g.add_argument('-D', '--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
     g.add_argument('--ppid', type=int, help='PID of calling process (normally autodetected, when using openconnect or vpnc)')
     args = p.parse_args(args)
@@ -501,8 +502,9 @@ def finalize_args_and_env(args, env):
     if args.ppid is None:
         args.ppid = providers.process.ppid_of(None)
         exe = providers.process.pid2exe(args.ppid)
-        if exe and os.path.basename(exe) in ('dash','bash','sh','tcsh','csh','ksh','zsh'):
+        if exe and os.path.basename(exe) in ('dash', 'bash', 'sh', 'tcsh', 'csh', 'ksh', 'zsh'):
             args.ppid = providers.process.ppid_of(args.ppid)
+
 
 def main(args=None, environ=os.environ):
     global providers
@@ -561,13 +563,13 @@ def main(args=None, environ=os.environ):
         print('WARNING: IPv6 address or netmask set. Support for IPv6 in %s should be considered BETA-QUALITY.' % p.prog, file=stderr)
     if args.dump:
         exe = providers.process.pid2exe(args.ppid)
-        caller = '%s (PID %d)'%(exe, args.ppid) if exe else 'PID %d' % args.ppid
+        caller = '%s (PID %d)' % (exe, args.ppid) if exe else 'PID %d' % args.ppid
 
         print('Called by %s with environment variables for vpnc-script:' % caller, file=stderr)
         width = max((len(envar) for var, envar, *rest in vpncenv if envar in environ), default=0)
         for var, envar, *rest in vpncenv:
             if envar in environ:
-                pyvar = var+'='+repr(env[var]) if var else 'IGNORED'
+                pyvar = var + '=' + repr(env[var]) if var else 'IGNORED'
                 print('  %-*s => %s' % (width, envar, pyvar), file=stderr)
         if env.splitinc:
             print('  %-*s => %s=%r' % (width, 'CISCO_*SPLIT_INC_*', 'splitinc', env.splitinc), file=stderr)
@@ -588,9 +590,9 @@ def main(args=None, environ=os.environ):
 
     if env.reason is None:
         raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
-    elif env.reason==reasons.pre_init:
+    elif env.reason == reasons.pre_init:
         do_pre_init(env, args)
-    elif env.reason==reasons.disconnect:
+    elif env.reason == reasons.disconnect:
         do_disconnect(env, args)
     elif env.reason in (reasons.reconnect, reasons.attempt_reconnect):
         # FIXME: is there anything that reconnect or attempt_reconnect /should/ do
@@ -604,7 +606,7 @@ def main(args=None, environ=os.environ):
 
         if args.verbose:
             print('WARNING: %s ignores reason=%s' % (p.prog, env.reason.name), file=stderr)
-    elif env.reason==reasons.connect:
+    elif env.reason == reasons.connect:
         do_connect(env, args)
 
         # we continue running in a new child process, so the VPN can actually
@@ -614,5 +616,6 @@ def main(args=None, environ=os.environ):
 
         do_post_connect(env, args)
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()

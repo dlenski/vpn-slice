@@ -4,7 +4,7 @@ import subprocess
 from ipaddress import ip_interface
 
 from .posix import PosixProcessProvider
-from .provider import RouteProvider, SplitDNSProvider, FirewallProvider
+from .provider import FirewallProvider, RouteProvider, SplitDNSProvider
 from .util import get_executable
 
 

@@ -1,9 +1,11 @@
-from sys import stderr
 from ipaddress import ip_address
-from dns.resolver import Resolver, NXDOMAIN, NoAnswer, Timeout
-from dns.name import root, from_text
+from sys import stderr
+
+from dns.name import from_text, root
+from dns.resolver import NXDOMAIN, NoAnswer, Resolver, Timeout
 
 from .provider import DNSProvider
+
 
 class DNSPythonProvider(DNSProvider):
     def configure(self, dns_servers, *, bind_addresses=None, search_domains=()):
