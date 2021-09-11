@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 from sys import stderr, platform
-import os, subprocess as sp
+import os, subprocess
 import argparse
 from enum import Enum
 from itertools import chain, zip_longest
@@ -135,14 +135,14 @@ def do_disconnect(env, args):
     # delete explicit route to gateway
     try:
         providers.route.remove_route(env.gateway)
-    except sp.CalledProcessError:
+    except subprocess.CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
     # remove firewall rule blocking incoming traffic
     if 'firewall' in providers and not args.incoming:
         try:
             providers.firewall.deconfigure_firewall(env.tundev)
-        except sp.CalledProcessError:
+        except subprocess.CalledProcessError:
             print("WARNING: failed to deconfigure firewall for VPN interface (%s)" % env.tundev, file=stderr)
 
     if args.vpn_domains is not None:
@@ -179,10 +179,10 @@ def do_connect(env, args):
                 providers.firewall.configure_firewall(env.tundev)
                 if args.verbose:
                     print("Blocked incoming traffic from VPN interface with iptables.", file=stderr)
-            except sp.CalledProcessError:
+            except subprocess.CalledProcessError:
                 try:
                     providers.firewall.deconfigure_firewall(env.tundev)
-                except sp.CalledProcessError:
+                except subprocess.CalledProcessError:
                     pass
                 print("WARNING: failed to block incoming traffic", file=stderr)
 
