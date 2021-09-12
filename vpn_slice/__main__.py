@@ -341,6 +341,7 @@ def do_post_connect(env, args):
 reasons = Enum('reasons', 'pre_init connect disconnect reconnect attempt_reconnect')
 vpncenv = [
     ('reason', 'reason', lambda x: reasons[x.replace('-', '_')]),
+    ('vpnfd', 'VPNFD', int),  # set if OpenConnect invoked in --script-tun/ocproxy mode
     ('gateway', 'VPNGATEWAY', ip_address),
     ('tundev', 'TUNDEV', str),
     ('domain', 'CISCO_DEF_DOMAIN', lambda x: x.split(), []),
@@ -589,7 +590,10 @@ def main(args=None, environ=os.environ):
             print('  ' + '\n  '.join(args.hosts))
 
     if env.reason is None:
-        raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
+        if env.vpnfd is not None:
+            raise SystemExit("Called by openconnect in --script-tun mode; you need a different script. See https://www.infradead.org/openconnect/nonroot.html")
+        else:
+            raise SystemExit("Must be called as vpnc-script, with $reason set; use --help for more information")
     elif env.reason == reasons.pre_init:
         do_pre_init(env, args)
     elif env.reason == reasons.disconnect:
