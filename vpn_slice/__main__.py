@@ -359,7 +359,8 @@ vpncenv = [
     ('nsplitexc', 'CISCO_SPLIT_EXC', int, 0),
     ('nsplitinc6', 'CISCO_IPV6_SPLIT_INC', int, 0),
     ('nsplitexc6', 'CISCO_IPV6_SPLIT_EXC', int, 0),
-    ('idle_timeout', 'IDLE_TIMEOUT', int, 600),
+    ('idle_timeout', 'IDLE_TIMEOUT', int, 600),           # OpenConnect v8.06+
+    ('vpnpid', 'VPNPID', int),                            # OpenConnect v9.0+
 ]
 
 def parse_env(environ=os.environ):
@@ -463,6 +464,10 @@ def parse_args_and_env(args=None, environ=os.environ):
     # use the tunnel device as the VPN name if unspecified
     if args.name is None:
         args.name = env.tundev
+
+    # use the PID provided by the caller if unspecified
+    if args.ppid is None:
+        args.ppid = env.vpnpid
 
     # use the list from the env if --domain wasn't specified, but start with an
     # empty list if it was specified; hence can't use 'default' here:
