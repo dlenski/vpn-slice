@@ -262,10 +262,11 @@ def do_post_connect(env, args):
             for ip, names in ns_names:
                 print("  %s = %s" % (ip, ', '.join(map(str, names))), file=stderr)
 
+    if args.hosts or args.prevent_idle_timeout:
+        providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
     if args.hosts:
         if args.verbose:
             print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
-        providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
         for host in args.hosts:
             try:
                 ips = providers.dns.lookup_host(host)
