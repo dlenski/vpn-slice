@@ -235,7 +235,7 @@ def do_connect(env, args):
     else:
         providers.route.flush_cache()
         if args.verbose:
-            print("Restored routes for %d excluded subnets." % len(exc_subnets), exc_subnets, file=stderr)
+            print("Restored routes for %d excluded subnets." % len(exc_subnets), file=stderr)
 
     # Use vpn dns for provided domains
     if args.vpn_domains is not None:
