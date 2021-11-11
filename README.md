@@ -36,11 +36,16 @@ interfaces.
 
 `vpn-slice` makes it easy to set up a split-tunnel VPN:
 
-* It only routes traffic for **specific hosts or subnets** through the VPN.
+* By default, it only routes traffic for **specific hosts or subnets**
+  through the VPN.
 * It automatically looks up named hosts, using the VPN's DNS servers,
   and adds entries for them to your `/etc/hosts` (which it cleans up
   after VPN disconnection), however it **does not otherwise alter your
   `/etc/resolv.conf` at all**.
+* It has many additional options to customize routing and lookup (for
+  example, `--route-splits` to additionally route traffic for specific
+  subnets requested *by the server*). Run `vpn-slice --help` to see
+  them all.
 
 ## Who this is for
 

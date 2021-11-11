@@ -454,7 +454,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with vpn dns")
     g = p.add_argument_group('Debugging options')
     g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
-    g.add_argument('-v', '--verbose', default=0, action='count', help="Explain what %(prog)s is doing")
+    g.add_argument('-v', '--verbose', default=0, action='count', help="Explain what %(prog)s is doing. Specify repeatedly to increase the level of detail.")
     p.add_argument('-V', '--version', action='version', version='%(prog)s ' + __version__)
     g.add_argument('-D', '--dump', action='store_true', help='Dump environment variables passed by caller')
     g.add_argument('--no-fork', action='store_false', dest='fork', help="Don't fork and continue in background on connect")
