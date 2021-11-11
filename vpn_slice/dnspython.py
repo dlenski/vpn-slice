@@ -26,7 +26,7 @@ class DNSPythonProvider(DNSProvider):
 
         for source in self.bind_addresses or [None]:
             if source is None:
-                self.resolver.nameservers = self.nameservers
+                self.resolver.nameservers = self.dns_servers
             else:
                 self.resolver.nameservers = [str(dns) for dns in self.dns_servers if dns.version == source.version]
                 if not self.resolver.nameservers:
@@ -34,9 +34,9 @@ class DNSPythonProvider(DNSProvider):
 
             for rectype in self.rectypes:
                 try:
-                    # print("Issuing query for hostname %r, rectype %r, source %r, search_domains %r, nameservers %r" % (
-                    #     hostname, rectype, source, self.resolver.search_domains, self.resolver.nameservers), file=stderr)
-                    a = self.resolver.query(hostname, rectype, source=str(source))
+                    # print("Issuing query for hostname %r, rectype %r, source %r, search %r, nameservers %r" % (
+                    #     hostname, rectype, source, self.resolver.search, self.resolver.nameservers), file=stderr)
+                    a = self.resolver.query(hostname, rectype, source=None if source is None else str(source))
                     print("Got results: %r" % list(a), file=stderr)
                 except (NXDOMAIN, NoAnswer):
                     pass
