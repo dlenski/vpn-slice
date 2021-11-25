@@ -5,7 +5,9 @@ import re
 import subprocess
 from ipaddress import ip_network
 
-from .posix import HostsFileProvider, PythonOsProcessProvider
+from vpn_slice.portable import PythonOsProcessProvider
+
+from .posix import HostsFileProvider
 from .provider import NrptProvider, RouteProvider, SplitDNSProvider
 from .powershell import PowerShellProvider
 

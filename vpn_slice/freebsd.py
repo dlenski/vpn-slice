@@ -1,6 +1,6 @@
 import os
 
-from .posix import PythonOsProcessProvider
+from .portable import PythonOsProcessProvider
 
 
 class ProcfsProvider(PythonOsProcessProvider):

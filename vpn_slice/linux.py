@@ -2,7 +2,7 @@ import os
 import stat
 import subprocess
 
-from .posix import PythonOsProcessProvider
+from .portable import PythonOsProcessProvider
 from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider
 from .util import get_executable
 

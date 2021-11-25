@@ -3,7 +3,7 @@ import re
 import subprocess
 from ipaddress import ip_interface
 
-from .posix import PythonOsProcessProvider
+from .portable import PythonOsProcessProvider
 from .provider import FirewallProvider, RouteProvider, SplitDNSProvider
 from .util import get_executable
 

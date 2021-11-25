@@ -97,17 +97,3 @@ class PosixHostsFileProvider(HostsFileProvider):
     def lock_hosts_file(self, hostf):
         import fcntl
         fcntl.flock(hostf, fcntl.LOCK_EX)  # POSIX only, obviously
-
-class PythonOsProcessProvider(ProcessProvider):
-    def kill(self, pid, signal=SIGTERM):
-        os.kill(pid, signal)
-
-    def pid(self):
-        return os.getpid()
-
-    def is_alive(self, pid):
-        try:
-            os.kill(pid, 0)
-            return True
-        except ProcessLookupError:
-            return False
