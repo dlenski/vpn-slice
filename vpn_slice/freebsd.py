@@ -1,9 +1,9 @@
 import os
 
-from .posix import PosixProcessProvider
+from .posix import PythonOsProcessProvider
 
 
-class ProcfsProvider(PosixProcessProvider):
+class ProcfsProvider(PythonOsProcessProvider):
     def pid2exe(self, pid):
         try:
             return os.readlink('/proc/%d/file' % pid)

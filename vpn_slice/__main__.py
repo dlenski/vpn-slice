@@ -66,6 +66,16 @@ def get_default_providers():
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
         )
+    elif platform.startswith('win32'):
+        from .win import WinProcessProvider, WinHostsFileProvider, WinRouteProvider, WinNrptProvider
+        from .dnspython import DNSPythonProvider
+        return dict(
+            process = WinProcessProvider,
+            route = WinRouteProvider,
+            dns = DNSPythonProvider,
+            hosts = WinHostsFileProvider,
+            nrpt = WinNrptProvider
+        )
     else:
         return dict(
             platform = OSError('Your platform, {}, is unsupported'.format(platform))
@@ -134,7 +144,13 @@ def do_disconnect(env, args):
 
     # delete explicit route to gateway
     try:
-        providers.route.remove_route(env.gateway)
+        # the following commented out code can be used to narrow-down the route removal, if needed
+        #gwr = providers.route.get_route(env.gateway)
+        providers.route.remove_route( \
+            env.gateway, \
+            #dev=(gwr["dev"] if platform.startswith("win32") else None), \
+            #via=(gwr["via"] if platform.startswith("win32") else None), \
+            )
     except CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
@@ -151,9 +167,13 @@ def do_disconnect(env, args):
         except OSError:
             print("WARNING: failed to deconfigure domains vpn dns", file=stderr)
 
+    # unset NRPT DNS rules (Windows only)
+    for (domain, servers) in args.nrpt.items():
+        providers.nrpt.remove_nrtp(domain, servers)
 
 def do_connect(env, args):
     global providers
+    global platform
     if args.banner and env.banner:
         print("Connect Banner:")
         for l in env.banner.splitlines(): print("| "+l)
@@ -201,6 +221,10 @@ def do_connect(env, args):
             print("WARNING: guessing default MTU of %d (couldn't determine MTU of %s)" % (mtu, dev), file=stderr)
     providers.route.set_link_info(env.tundev, state='up', mtu=mtu)
 
+    # erase all addresses (needed on Windows to clean-up the adapter)
+    # TODO: also cleanup DNS?
+    # TODO: also cleanup routes?
+    providers.route.remove_address(env.tundev)
     # set IPv4, IPv6 addresses for tunnel device
     if env.myaddr:
         providers.route.add_address(env.tundev, env.myaddr)
@@ -221,7 +245,7 @@ def do_connect(env, args):
     for dest, tag in chain(tagged(ns, "nameserver"), tagged(args.subnets, "subnet"), tagged(args.aliases, "alias")):
         if args.verbose > 1:
             print("Adding route to %s %s through %s." % (tag, dest, env.tundev), file=stderr)
-        providers.route.replace_route(dest, dev=env.tundev)
+        providers.route.replace_route(dest, dev=env.tundev, via=(env.via if platform.startswith("win32") else None))
     else:
         providers.route.flush_cache()
         if args.verbose:
@@ -245,8 +269,13 @@ def do_connect(env, args):
             providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns)
 
 
+    # set NRPT DNS rules (Windows only)
+    for (domain, servers) in args.nrpt.items():
+        providers.nrpt.add_nrtp(domain, servers)
+
 def do_post_connect(env, args):
     global providers
+    global platform
     # lookup named hosts for which we need routes and/or host_map entries
     # (the DNS/NBNS servers already have their routes)
     ip_routes = set()
@@ -295,7 +324,7 @@ def do_post_connect(env, args):
     for ip in ip_routes:
         if args.verbose > 1:
             print("Adding route to %s (for named hosts) through %s." % (ip, env.tundev), file=stderr)
-        providers.route.replace_route(ip, dev=env.tundev)
+        providers.route.replace_route(ip, dev=env.tundev, via=(env.via if platform.startswith("win32") else None))
     else:
         providers.route.flush_cache()
         if args.verbose:
@@ -387,6 +416,8 @@ def parse_env(environ=os.environ):
             raise AssertionError("IPv4 network (INTERNAL_IP4_{{NETADDR,NETMASK}}) {ad}/{nm} does not match INTERNAL_IP4_NETMASKLEN={nml} (implies /{nmi})".format(
                 ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
         assert env.network.netmask == env.netmask
+        # first/lowest IP-addr in the range should be internal GW (seen in Windows vpnc-script.js)
+        env.via = next(env.network.hosts())
 
     # Need to match behavior of original vpnc-script here
     # Examples:
@@ -435,6 +466,7 @@ def parse_env(environ=os.environ):
 def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, included subnets (e.g. 192.168.0.0/24), excluded subnets (e.g. %%8.0.0.0/8), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
+    p.add_argument('--nrpt', default=[], action='append', help='NRPT DNS mapping in form .sub.domain.org=8.8.8.8,4.4.4.4')
     g = p.add_argument_group('Subprocess options')
     g.add_argument('-k', '--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     g.add_argument('-K', '--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
@@ -510,6 +542,13 @@ def finalize_args_and_env(args, env):
         if exe and os.path.basename(exe) in ('dash', 'bash', 'sh', 'tcsh', 'csh', 'ksh', 'zsh'):
             args.ppid = providers.process.ppid_of(args.ppid)
 
+
+    if args.nrpt:
+        args_nrpt = args.nrpt
+        args.nrpt = {}
+        for nrpt in args_nrpt:
+            dom, dns = str.split(nrpt,"=", 1);
+            args.nrpt[dom] = str.split(dns, ",");
 
 def main(args=None, environ=os.environ):
     global providers

@@ -88,6 +88,10 @@ class RouteProvider(metaclass=ABCMeta):
     def add_address(self, device, address):
         """Add an address to an interface."""
 
+    @abstractmethod
+    def remove_address(self, device, address=None):
+        """Removes an address from an interface. Removes all when address=None."""
+
 
 class FirewallProvider(metaclass=ABCMeta):
     @abstractmethod
@@ -128,6 +132,23 @@ class HostsProvider(metaclass=ABCMeta):
         host_map maps IP addresses to host names, like the hosts file expects.
 
         """
+
+class NrptProvider:
+    @abstractmethod
+    def add_nrtp(self, namespace, servers):
+        """NRPT Rule addition.
+        
+        Add's a special mapping NRPT rule for a given DNS namespace
+        to be resolved by a specified list of DNS servers.
+        """
+
+    @abstractmethod
+    def remove_nrtp(self, namespace):
+        """Removes all mappings with the matching namespace."""
+
+    @abstractmethod
+    def remove_all_nrtp(self):
+        """Removes all NRPT rules."""
 
 class TunnelPrepProvider:
     def create_tunnel(self):
