@@ -67,14 +67,15 @@ def get_default_providers():
             hosts = PosixHostsFileProvider,
         )
     elif platform.startswith('win32'):
-        from .win import WinProcessProvider, WinHostsFileProvider, WinRouteProvider, WinNrptProvider
+        from .win import WinProcessProvider, WinHostsFileProvider, WinRouteProvider, WinNrptSplitDNSProvider, WinNrptProvider
         from .dnspython import DNSPythonProvider
         return dict(
             process = WinProcessProvider,
             route = WinRouteProvider,
             dns = DNSPythonProvider,
             hosts = WinHostsFileProvider,
-            nrpt = WinNrptProvider
+            domain_vpn_dns=WinNrptSplitDNSProvider,
+            nrpt = WinNrptProvider,
         )
     else:
         return dict(
@@ -245,7 +246,9 @@ def do_connect(env, args):
     for dest, tag in chain(tagged(ns, "nameserver"), tagged(args.subnets, "subnet"), tagged(args.aliases, "alias")):
         if args.verbose > 1:
             print("Adding route to %s %s through %s." % (tag, dest, env.tundev), file=stderr)
-        providers.route.replace_route(dest, dev=env.tundev, via=(env.via if platform.startswith("win32") else None))
+        providers.route.replace_route(dest, dev=env.tundev, \
+            # via=(env.via if platform.startswith("win32") else None) \
+            )
     else:
         providers.route.flush_cache()
         if args.verbose:
@@ -466,7 +469,6 @@ def parse_env(environ=os.environ):
 def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, included subnets (e.g. 192.168.0.0/24), excluded subnets (e.g. %%8.0.0.0/8), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
-    p.add_argument('--nrpt', default=[], action='append', help='NRPT DNS mapping in form .sub.domain.org=8.8.8.8,4.4.4.4')
     g = p.add_argument_group('Subprocess options')
     g.add_argument('-k', '--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     g.add_argument('-K', '--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
@@ -484,6 +486,8 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with vpn dns")
+    if platform.startswith('win32'):
+        g.add_argument('--nrpt', default=[], action='append', help='NRPT DNS mapping in form .sub.domain.org=8.8.8.8,4.4.4.4')
     g = p.add_argument_group('Debugging options')
     g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
     g.add_argument('-v', '--verbose', default=0, action='count', help="Explain what %(prog)s is doing. Specify repeatedly to increase the level of detail.")
@@ -550,21 +554,29 @@ def finalize_args_and_env(args, env):
             dom, dns = str.split(nrpt,"=", 1);
             args.nrpt[dom] = str.split(dns, ",");
 
-def main(args=None, environ=os.environ):
+def initGlobalProviders():
     global providers
 
+    if "provider" in globals():
+        return
+
+    # Set platform-specific providers
+    providers = slurpy()
+    for pn, pv in get_default_providers().items():
+        try:
+            if isinstance(pv, Exception):
+                raise pv
+            providers[pn] = pv()
+        except Exception as e:
+            print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
+
+def main(args=None, environ=os.environ):
+    global providers
+    
     try:
         p, args, env = parse_args_and_env(args, environ)
-
-        # Set platform-specific providers
-        providers = slurpy()
-        for pn, pv in get_default_providers().items():
-            try:
-                if isinstance(pv, Exception):
-                    raise pv
-                providers[pn] = pv()
-            except Exception as e:
-                print("WARNING: Couldn't configure {} provider: {}".format(pn, e), file=stderr)
+        
+        initGlobalProviders()
 
         # Fail if necessary providers are missing
         required = {'route', 'process'}

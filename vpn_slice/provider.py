@@ -133,23 +133,6 @@ class HostsProvider(metaclass=ABCMeta):
 
         """
 
-class NrptProvider:
-    @abstractmethod
-    def add_nrtp(self, namespace, servers):
-        """NRPT Rule addition.
-        
-        Add's a special mapping NRPT rule for a given DNS namespace
-        to be resolved by a specified list of DNS servers.
-        """
-
-    @abstractmethod
-    def remove_nrtp(self, namespace):
-        """Removes all mappings with the matching namespace."""
-
-    @abstractmethod
-    def remove_all_nrtp(self):
-        """Removes all NRPT rules."""
-
 class TunnelPrepProvider:
     def create_tunnel(self):
         """Create tunnel device.
@@ -179,3 +162,20 @@ class SplitDNSProvider:
         Base class behavior is to do nothing.
 
         """
+
+class NrptProvider:
+    @abstractmethod
+    def add_nrtp(self, namespace, servers):
+        """NRPT Rule addition.
+        
+        Add's a special mapping NRPT rule for a given DNS namespace
+        to be resolved by a specified list of DNS servers.
+        """
+
+    @abstractmethod
+    def remove_nrtp(self, namespace):
+        """Removes all mappings with the matching namespace."""
+
+    @abstractmethod
+    def remove_all_nrtp(self):
+        """Removes all NRPT rules."""

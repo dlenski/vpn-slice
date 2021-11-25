@@ -6,7 +6,7 @@ import subprocess
 from ipaddress import ip_network
 
 from .posix import HostsFileProvider, PythonOsProcessProvider
-from .provider import NrptProvider, RouteProvider
+from .provider import NrptProvider, RouteProvider, SplitDNSProvider
 from .powershell import PowerShellProvider
 
 if not '_psp' in globals():
@@ -152,10 +152,25 @@ class WinNrptProvider(NrptProvider):
     def remove_nrtp(self, namespace):
         nrpts = self.psp.Get_DnsClientNrptRule()
         for nrpt in nrpts:
-            if nrpt.Namespace==namespace:
+            if nrpt.Namespace == namespace:
                 self.psp.Remove_DnsClientNrptRule(Name=nrpt.Name)
 
     def remove_all_nrtp(self):
         nrpts = self.psp.Get_DnsClientNrptRule()
         for nrpt in nrpts:
             self.psp.Remove_DnsClientNrptRule(Name=nrpt.Name)
+
+class WinNrptSplitDNSProvider(SplitDNSProvider):
+    def __init__(self):
+        self.psp = _psp
+    
+    def configure_domain_vpn_dns(self, domains, nameservers):
+        for domain in domains:
+            self.psp.Add_DnsClientNrptRule(Namespace=f".{domain}", NameServers=nameservers)
+
+    def deconfigure_domain_vpn_dns(self, domains, nameservers):
+        domains = [f".{domain}" for domain in domains]        
+        nrpts = self.psp.Get_DnsClientNrptRule()
+        for nrpt in nrpts:
+            if nrpt.Namespace in domains:
+                self.psp.Remove_DnsClientNrptRule(Name=nrpt.Name)
