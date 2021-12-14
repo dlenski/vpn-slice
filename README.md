@@ -86,11 +86,19 @@ You should install as `root` (e.g. using `sudo`), because
 `openconnect` or `vpnc` will need to be able to invoke `vpn-slice`
 while running as root:
 
-    $ sudo pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
+```sh
+# latest release
+$ sudo pip3 install PyPI
 
-On macOS, you can also install using [Homebrew](https://brew.sh):
+# latest development version
+$ sudo pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
+```
 
-    $ brew install vpn-slice
+On macOS, you can also install from the [Homebrew](https://brew.sh) repository:
+
+```sh
+$ brew install vpn-slice
+```
 
 ## First steps
 
@@ -99,20 +107,24 @@ check that it works properly on your platform, and can verify that it has all of
 the access and dependencies that it needs (to modify `/etc/hosts`, alter
 routing table, etc.):
 
-    $ sudo vpn-slice --self-test
-    ***************************************************************************
-    *** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***
-    ***************************************************************************
+```sh
+$ sudo vpn-slice --self-test
+***************************************************************************
+*** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***
+***************************************************************************
+```
 
 If you run the self-test as a non-`root` user, it will tell you what required
 access it is unable to obtain:
 
-    $ vpn-slice --self-test
-    WARNING: Couldn't configure hosts provider: Cannot read/write /etc/hosts
-    ******************************************************************************************
-    *** Self-test did not pass. Double-check that you are running as root (e.g. with sudo) ***
-    ******************************************************************************************
-    Aborting because providers for hosts are required; use --help for more information
+```sh
+$ vpn-slice --self-test
+WARNING: Couldn't configure hosts provider: Cannot read/write /etc/hosts
+******************************************************************************************
+*** Self-test did not pass. Double-check that you are running as root (e.g. with sudo) ***
+******************************************************************************************
+Aborting because providers for hosts are required; use --help for more information
+```
 
 When you start trying to use `vpn-slice` for real, you should use the
 [diagnostic options](#diagnostics) (e.g `openconnect -s 'vpn-slice
