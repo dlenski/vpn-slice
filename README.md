@@ -79,16 +79,17 @@ traffic as possible through those VPNs.
     [`route`](https://en.wikipedia.org/wiki/Route_(command))
     if [`procfs`](https://www.freebsd.org/cgi/man.cgi?query=procfs&sektion=5) is mounted
 
-You can install the latest build with `pip` (make sure you are using
-the Python 3.x version, usually invoked with `pip3`).
+You can install the latest build [from PyPI](https://pypi.org/project/vpn-slice)
+with `pip` (make sure you are using the Python 3.x version, usually invoked
+with `pip3`).
 
 You should install as `root` (e.g. using `sudo`), because
 `openconnect` or `vpnc` will need to be able to invoke `vpn-slice`
 while running as root:
 
 ```sh
-# latest release
-$ sudo pip3 install PyPI
+# latest release from PyPI
+$ sudo pip3 install vpn-slice
 
 # latest development version
 $ sudo pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
