@@ -89,11 +89,13 @@ while running as root:
 
 ```sh
 # latest release from PyPI
-$ sudo pip3 install vpn-slice
+$ sudo pip3 install "vpn-slice[dnspython,setproctitle]"
 
 # latest development version
-$ sudo pip3 install https://github.com/dlenski/vpn-slice/archive/master.zip
+$ sudo pip3 install "https://github.com/dlenski/vpn-slice/archive/master.zip#egg=vpn-slice[dnspython,setproctitle]"
 ```
+
+(If your system doesn't support `dnspython` or `setproctitle`, for some reason, then omit those.)
 
 On macOS, you can also install from the [Homebrew](https://brew.sh) repository:
 
