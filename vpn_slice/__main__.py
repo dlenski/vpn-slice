@@ -383,9 +383,9 @@ def parse_env(environ=os.environ):
         env.network = IPv4Network(env.network).supernet(new_prefix=env.netmasklen)
         if env.network.network_address != orig_netaddr:
             print("WARNING: IPv4 network %s/%d has host bits set, replacing with %s" % (orig_netaddr, env.netmasklen, env.network), file=stderr)
-        if env.network.netmask != env.netmask:
-            raise AssertionError("IPv4 network (INTERNAL_IP4_{{NETADDR,NETMASK}}) {ad}/{nm} does not match INTERNAL_IP4_NETMASKLEN={nml} (implies /{nmi})".format(
-                ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask))
+        assert env.network.netmask == env.netmask, \
+            "IPv4 network (INTERNAL_IP4_{{NETADDR,NETMASK}}) {ad}/{nm} does not match INTERNAL_IP4_NETMASKLEN={nml} (implies /{nmi})".format(
+                ad=orig_netaddr, nm=env.netmask, nml=env.netmasklen, nmi=env.network.netmask)
         assert env.network.netmask == env.netmask
 
     # Need to match behavior of original vpnc-script here
@@ -415,9 +415,9 @@ def parse_env(environ=os.environ):
         net = IPv4Network(ad).supernet(new_prefix=nml)
         if net.network_address != ad:
             print("WARNING: IPv4 split network (CISCO_SPLIT_%s_%d_{ADDR,MASK}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
-        if net.netmask != nm:
-            raise AssertionError("IPv4 split network (CISCO_SPLIT_{pfx}_{n}_{{ADDR,MASK}}) {ad}/{nm} does not match CISCO_SPLIT_{pfx}_{n}_MASKLEN={nml} (implies /{nmi})".format(
-                pfx=pfx, n=n, ad=ad, nm=nm, nml=nml, nmi=net.netmask))
+        assert net.netmask == nm, \
+            "IPv4 split network (CISCO_SPLIT_{pfx}_{n}_{{ADDR,MASK}}) {ad}/{nm} does not match CISCO_SPLIT_{pfx}_{n}_MASKLEN={nml} (implies /{nmi})".format(
+                pfx=pfx, n=n, ad=ad, nm=nm, nml=nml, nmi=net.netmask)
         env['split' + pfx.lower()].append(net)
 
     for pfx, n in chain((('INC', n) for n in range(env.nsplitinc6)),
