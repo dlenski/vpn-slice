@@ -40,7 +40,7 @@ setup(
     packages=["vpn_slice"],
     include_package_data=True,
     entry_points={'console_scripts': ['vpn-slice=vpn_slice.__main__:main']},
-    classifiers={
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Topic :: System :: Networking',
@@ -49,5 +49,5 @@ setup(
         'Operating System :: POSIX :: BSD',
         'Operating System :: MacOS :: MacOS X',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-    }
+    ]
 )
