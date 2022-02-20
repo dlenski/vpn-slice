@@ -101,6 +101,12 @@ On macOS, you can also install from the [Homebrew](https://brew.sh) repository:
 $ brew install vpn-slice
 ```
 
+You can also package it in RPM format, to keep track of installed files
+```sh
+$ python setup.py bdist_rpm --requires=python3-dns,python3-setproctitle
+$ sudo dnf install dist/vpn-slice-*.noarch.rpm
+```
+
 ## First steps
 
 Before trying to use `vpn-slice` with `openconnect` or `vpnc`,
