@@ -97,6 +97,16 @@ $ sudo pip3 install "https://github.com/dlenski/vpn-slice/archive/master.zip#egg
 
 (If your system doesn't support `dnspython` or `setproctitle`, for some reason, then omit those.)
 
+You can use the `bdist_rpm` target to package vpn-slice as an RPM, and thereby install it with your distribution's
+packaging system, allowing it to keep track of installed files.
+See [the documention](https://docs.python.org/3/distutils/builtdist.html#creating-rpm-packages) for important
+details about the portability and reusability of RPM packages built in this way:
+
+```sh
+$ python3 setup.py bdist_rpm --requires=python3-dns,python3-setproctitle
+$ sudo dnf install dist/vpn-slice-*.noarch.rpm
+```
+
 On macOS, you can also install from the [Homebrew](https://brew.sh) repository:
 
 ```sh
