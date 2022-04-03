@@ -2,6 +2,8 @@ import os
 import os.path
 from shutil import which
 
+MAX_UINT32 = 4294967295
+
 
 def get_executable(path):
     path = which(os.path.basename(path)) or path

@@ -43,7 +43,7 @@ class BSDRouteProvider(RouteProvider):
     def _family_option(self, destination):
         return '-inet6' if destination.version == 6 else '-inet'
 
-    def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+    def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None, metric=None):
         args = ['add', self._family_option(destination)]
         if mtu is not None:
             args.extend(('-mtu', str(mtu)))
@@ -77,6 +77,13 @@ class BSDRouteProvider(RouteProvider):
                 'dev': info_d.get('interface', None),
                 'mtu': info_d.get('mtu', None),
             }
+
+    def get_all_routes(self, destination):
+        # FIXME: Use netstat to ensure that we don't get a loopback route via the VPN interface itself,
+        # like vpnc-script now does.
+        # https://gitlab.com/openconnect/vpnc-scripts/-/blob/412a1faffa72fcda54e8c42d22e0057e56240ff1/vpnc-script#L395-402
+        route = self.get_route(destination)
+        return [route] if route else []
 
     def flush_cache(self):
         pass

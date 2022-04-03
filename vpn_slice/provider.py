@@ -23,7 +23,7 @@ class ProcessProvider(metaclass=ABCMeta):
 
 class RouteProvider(metaclass=ABCMeta):
     @abstractmethod
-    def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+    def add_route(self, destination, *, via=None, dev=None, src=None, mtu=None, metric=None):
         """Add a route to a destination.
 
         You must specify a device or gateway saying where to route to.
@@ -35,7 +35,7 @@ class RouteProvider(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def replace_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
+    def replace_route(self, destination, *, via=None, dev=None, src=None, mtu=None, metric=None):
         """Add or replace a route to a destination.
 
         You must specify a device or gateway saying where to route to.
@@ -52,7 +52,8 @@ class RouteProvider(metaclass=ABCMeta):
 
     @abstractmethod
     def get_route(self, destination):
-        """Return the gateway to a destination.
+        """Return one route to a destination (what the OS considers the
+        optimal or most specific route).
 
         Return a dict with these keys containing the information,
         or None if it is unavailable:
@@ -61,6 +62,23 @@ class RouteProvider(metaclass=ABCMeta):
         * dev
         * src
         * mtu
+        * metric
+
+        """
+
+    @abstractmethod
+    def get_all_routes(self, destination):
+        """Return all routes to a destination, sorted in order of decreasing
+        optimality or specificity.
+
+        Return a list of dict with these keys containing the
+        information:
+
+        * via
+        * dev
+        * src
+        * mtu
+        * metric
 
         """
 
