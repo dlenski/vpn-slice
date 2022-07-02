@@ -138,6 +138,15 @@ def do_disconnect(env, args):
     except CalledProcessError:
         print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
 
+    for dest in args.exc_subnets:
+        providers.route.remove_route(dest)
+
+    for dest in args.subnets:
+        providers.route.remove_route(dest)
+
+    providers.route.flush_cache()
+
+
     # remove firewall rule blocking incoming traffic
     if 'firewall' in providers and not args.incoming:
         try:
