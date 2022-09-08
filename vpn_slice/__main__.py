@@ -30,8 +30,10 @@ def get_default_providers():
         DNSPythonProvider = None
 
     if platform.startswith('linux'):
-        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider
+        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider, ResolveConfSplitDNSProvider, ResolvedSplitDNSProvider
         from .posix import DigProvider, PosixHostsFileProvider
+        if not ResolvedSplitDNSProvider.inuse:
+            ResolvedSplitDNSProvider = None
         return dict(
             process = ProcfsProvider,
             route = Iproute2Provider,
@@ -39,6 +41,7 @@ def get_default_providers():
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             prep = CheckTunDevProvider,
+            domain_vpn_dns = ResolvedSplitDNSProvider or ResolveConfSplitDNSProvider,
         )
     elif platform.startswith('darwin'):
         from distutils.version import LooseVersion
@@ -147,7 +150,7 @@ def do_disconnect(env, args):
 
     if args.vpn_domains is not None:
         try:
-            providers.domain_vpn_dns.deconfigure_domain_vpn_dns(args.vpn_domains, env.dns)
+            providers.domain_vpn_dns.deconfigure_domain_vpn_dns(args.vpn_domains, env.dns, env.tundev)
         except OSError:
             print("WARNING: failed to deconfigure domains vpn dns", file=stderr)
 
@@ -242,7 +245,10 @@ def do_connect(env, args):
         if 'domain_vpn_dns' not in providers:
             print("WARNING: no split dns provider available; can't split dns", file=stderr)
         else:
-            providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns)
+            try:
+                providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns, env.tundev)
+            except:
+                print("WARNING: failed to configure domains vpn dns", file=stderr)
 
 
 def do_post_connect(env, args):
@@ -336,7 +342,7 @@ def do_post_connect(env, args):
 ########################################
 
 # Translate environment variables which may be passed by our caller
-# into a more Pythonic form (these are take from vpnc-script)
+# into a more Pythonic form (these are taken from vpnc-script)
 reasons = Enum('reasons', 'pre_init connect disconnect reconnect attempt_reconnect')
 vpncenv = [
     ('reason', 'reason', lambda x: reasons[x.replace('-', '_')]),
@@ -451,7 +457,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g = p.add_argument_group('Nameserver options')
     g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
-    g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with vpn dns")
+    g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with VPN DNS")
     g = p.add_argument_group('Debugging options')
     g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
     g.add_argument('-v', '--verbose', default=0, action='count', help="Explain what %(prog)s is doing. Specify repeatedly to increase the level of detail.")
