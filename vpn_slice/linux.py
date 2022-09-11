@@ -139,23 +139,22 @@ class ResolveConfSplitDNSProvider(SplitDNSProvider):
         p.stdin.close()
 
 class ResolvedSplitDNSProvider(SplitDNSProvider):
-    def __init__(self):
-        self._inuse = re.match("^/run/systemd/resolve/", os.readlink('/etc/resolv.conf')) != None
-        self.resolvectl = get_executable('/usr/bin/resolvectl')
-
+    @staticmethod
     def inuse(self):
-        self._inuse
+        re.match("^/run/systemd/resolve/", os.readlink('/etc/resolv.conf')) != None
+
+    def __init__(self):
+        self.resolvectl = get_executable('/usr/bin/resolvectl')
 
     def _resolvectl(self, *args):
         cl = [self.resolvectl]
         cl.extend(args)
-        from pprint import pprint
-        pprint(cl)
+        logging.debug('Resolvctl command: %s', 'resolvectl', extra=cl)
         subprocess.check_call(cl)
 
     def configure_domain_vpn_dns(self, domains, nameservers, tundev):
         try:
-            self._resolvectl(*([ 'domain', tundev ] + [ x.encode('utf-8') for x in domains ]))
-            self._resolvectl(*([ 'dns', tundev ] + [ str(x).encode('utf-8') for x in nameservers ]))
+            self._resolvectl(*([ 'domain', tundev ] + [ format(x) for x in domains ]))
+            self._resolvectl(*([ 'dns', tundev ] + [ format(x) for x in nameservers ]))
         except Exception as e:
             logging.error('Error at %s', 'resolvectl', exc_info=e)
