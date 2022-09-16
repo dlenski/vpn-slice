@@ -32,7 +32,7 @@ def get_default_providers():
     if platform.startswith('linux'):
         from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider, ResolveConfSplitDNSProvider, ResolvedSplitDNSProvider
         from .posix import DigProvider, PosixHostsFileProvider
-        if not ResolvedSplitDNSProvider.inuse:
+        if not ResolvedSplitDNSProvider.inuse():
             ResolvedSplitDNSProvider = None
         return dict(
             process = ProcfsProvider,
