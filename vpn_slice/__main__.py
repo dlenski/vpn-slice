@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import logging
 from enum import Enum
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface, IPv6Network, ip_address, ip_network
 from itertools import chain, zip_longest
@@ -32,6 +33,7 @@ def get_default_providers():
     if platform.startswith('linux'):
         from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider, ResolveConfSplitDNSProvider, ResolvedSplitDNSProvider
         from .posix import DigProvider, PosixHostsFileProvider
+        logging.debug('resolved in use: %s', ResolvedSplitDNSProvider.inuse())
         if not ResolvedSplitDNSProvider.inuse():
             ResolvedSplitDNSProvider = None
         return dict(

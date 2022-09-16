@@ -7,6 +7,7 @@ import logging
 from .posix import PosixProcessProvider
 from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider, SplitDNSProvider
 from .util import get_executable
+from pprint import pformat
 
 
 class ProcfsProvider(PosixProcessProvider):
@@ -141,7 +142,7 @@ class ResolveConfSplitDNSProvider(SplitDNSProvider):
 class ResolvedSplitDNSProvider(SplitDNSProvider):
     @staticmethod
     def inuse():
-        re.match("^/run/systemd/resolve/", os.readlink('/etc/resolv.conf')) != None
+        return re.match("^/run/systemd/resolve/.*", os.readlink('/etc/resolv.conf')) != None
 
     def __init__(self):
         self.resolvectl = get_executable('/usr/bin/resolvectl')
@@ -149,7 +150,8 @@ class ResolvedSplitDNSProvider(SplitDNSProvider):
     def _resolvectl(self, *args):
         cl = [self.resolvectl]
         cl.extend(args)
-        logging.debug('Resolvctl command: %s', 'resolvectl', extra=cl)
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug('Resolvctl command: %s', pformat(cl))
         subprocess.check_call(cl)
 
     def configure_domain_vpn_dns(self, domains, nameservers, tundev):
