@@ -1,10 +1,13 @@
 import os
 import stat
 import subprocess
+import re
+import logging
 
 from .posix import PosixProcessProvider
-from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider
+from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider, SplitDNSProvider
 from .util import get_executable
+from pprint import pformat
 
 
 class ProcfsProvider(PosixProcessProvider):
@@ -109,3 +112,51 @@ class CheckTunDevProvider(TunnelPrepProvider):
     def prepare_tunnel(self):
         if not os.access('/dev/net/tun', os.R_OK | os.W_OK):
             raise OSError("can't read and write /dev/net/tun")
+
+class ResolveConfSplitDNSProvider(SplitDNSProvider):
+    def __init__(self):
+        self.resolvconf = get_executable('/usr/bin/resolvconf')
+
+    def _resolvconf(self, *args):
+        cl = [self.resolvconf]
+        cl.extend(args)
+        subprocess.check_call(cl)
+
+    def configure_domain_vpn_dns(self, domains, nameservers, tundev):
+        cl = [self.resolvconf]
+        cl.extend(['-p', '-a', tundev])
+
+        p = subprocess.Popen(cl, stdin=subprocess.PIPE)
+
+        p.stdin.write("search ".encode('utf-8'))
+
+        for domain in domains:
+            p.stdin.write ((domain+" ").encode('utf-8'))
+        p.stdin.write("\n".encode('utf-8'))
+
+        for nameserver in nameservers:
+            p.stdin.write(("nameserver " + str(nameserver) + "\n").encode('utf-8'))
+
+        p.stdin.close()
+
+class ResolvedSplitDNSProvider(SplitDNSProvider):
+    @staticmethod
+    def inuse():
+        return re.match("^/run/systemd/resolve/.*", os.readlink('/etc/resolv.conf')) != None
+
+    def __init__(self):
+        self.resolvectl = get_executable('/usr/bin/resolvectl')
+
+    def _resolvectl(self, *args):
+        cl = [self.resolvectl]
+        cl.extend(args)
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            logging.debug('Resolvctl command: %s', pformat(cl))
+        subprocess.check_call(cl)
+
+    def configure_domain_vpn_dns(self, domains, nameservers, tundev):
+        try:
+            self._resolvectl(*([ 'domain', tundev ] + [ format(x) for x in domains ]))
+            self._resolvectl(*([ 'dns', tundev ] + [ format(x) for x in nameservers ]))
+        except Exception as e:
+            logging.error('Error at %s', 'resolvectl', exc_info=e)
