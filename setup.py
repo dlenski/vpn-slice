@@ -8,9 +8,6 @@ try:
 except ImportError:
     from distutils.core import setup
 
-if sys.version_info < (3, 3):
-    sys.exit("Python 3.3+ is required; you are using %s" % sys.version)
-
 ########################################
 
 version_py = os.path.join('vpn_slice', 'version.py')
@@ -30,6 +27,7 @@ setup(
     long_description_content_type='text/markdown',
     author="Daniel Lenski",
     author_email="dlenski@gmail.com",
+    python_requires=">=3.3",
     extras_require={
         "setproctitle": ["setproctitle"],
         "dnspython": ["dnspython"],
