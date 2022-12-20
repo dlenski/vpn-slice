@@ -127,10 +127,7 @@ class ResolvConfSplitDNSProvider(SplitDNSProvider):
 class ResolvedSplitDNSProvider(SplitDNSProvider):
     @staticmethod
     def inuse():
-        try:
-            return os.readlink('/etc/resolv.conf').startswith('/run/systemd/resolve/')
-        except OSError:
-            return False  # not in use if it's not a symlink
+        return os.path.realpath('/etc/resolv.conf').startswith('/run/systemd/resolve/')
 
     def __init__(self):
         self.resolvectl = get_executable('/usr/bin/resolvectl')
