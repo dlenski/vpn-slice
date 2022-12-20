@@ -142,7 +142,7 @@ class ResolveConfSplitDNSProvider(SplitDNSProvider):
 class ResolvedSplitDNSProvider(SplitDNSProvider):
     @staticmethod
     def inuse():
-        return re.match("^/run/systemd/resolve/.*", os.readlink('/etc/resolv.conf')) != None
+        return re.match("^/run/systemd/resolve/.*", os.path.realpath('/etc/resolv.conf')) != None
 
     def __init__(self):
         self.resolvectl = get_executable('/usr/bin/resolvectl')
