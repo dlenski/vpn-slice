@@ -67,7 +67,7 @@ class Iproute2Provider(RouteProvider):
             return r
 
     def flush_cache(self):
-        self._iproute('route', 'flush', 'cache')
+        # Starting with Linux version 3.6, there is no routing cache for IPv4.
         self._iproute('-6', 'route', 'flush', 'cache')
 
     def get_link_info(self, device):
