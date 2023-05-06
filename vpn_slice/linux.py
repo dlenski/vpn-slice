@@ -11,7 +11,7 @@ class ProcfsProvider(PosixProcessProvider):
     def pid2exe(self, pid):
         try:
             return os.readlink('/proc/%d/exe' % pid)
-        except (OSError, IOError):
+        except OSError:
             return None
 
     def ppid_of(self, pid=None):
@@ -19,7 +19,7 @@ class ProcfsProvider(PosixProcessProvider):
             return os.getppid()
         try:
             return int(next(open('/proc/%d/stat' % pid)).split()[3])
-        except (OSError, ValueError, IOError):
+        except (OSError, ValueError):
             return None
 
 

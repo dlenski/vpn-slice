@@ -117,7 +117,7 @@ def do_disconnect(env, args):
     for pidfile in args.kill:
         try:
             pid = int(open(pidfile).read())
-        except (IOError, ValueError):
+        except (OSError, ValueError):
             print("WARNING: could not read pid from %s" % pidfile, file=stderr)
         else:
             try: providers.process.kill(pid)
