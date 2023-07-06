@@ -1,12 +1,10 @@
 import os
 import stat
 import subprocess
-import logging
 
 from .posix import PosixProcessProvider
 from .provider import FirewallProvider, RouteProvider, TunnelPrepProvider, SplitDNSProvider
 from .util import get_executable
-from pprint import pformat
 
 
 class ProcfsProvider(PosixProcessProvider):
@@ -116,11 +114,6 @@ class ResolveConfSplitDNSProvider(SplitDNSProvider):
     def __init__(self):
         self.resolvconf = get_executable('/usr/bin/resolvconf')
 
-    def _resolvconf(self, *args):
-        cl = [self.resolvconf]
-        cl.extend(args)
-        subprocess.check_call(cl)
-
     def configure_domain_vpn_dns(self, domains, nameservers, tundev):
         cl = [self.resolvconf]
         cl.extend(['-p', '-a', tundev])
@@ -149,16 +142,6 @@ class ResolvedSplitDNSProvider(SplitDNSProvider):
     def __init__(self):
         self.resolvectl = get_executable('/usr/bin/resolvectl')
 
-    def _resolvectl(self, *args):
-        cl = [self.resolvectl]
-        cl.extend(args)
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            logging.debug('Resolvctl command: %s', pformat(cl))
-        subprocess.check_call(cl)
-
     def configure_domain_vpn_dns(self, domains, nameservers, tundev):
-        try:
-            self._resolvectl(*([ 'domain', tundev ] + [ format(x) for x in domains ]))
-            self._resolvectl(*([ 'dns', tundev ] + [ format(x) for x in nameservers ]))
-        except Exception as e:
-            logging.error('Error at %s', 'resolvectl', exc_info=e)
+        subprocess.check_call([self.resolvectl, 'domain', tundev] + domains)
+        subprocess.check_call([self.resolvectl, 'dns', tundev] + nameservers)
