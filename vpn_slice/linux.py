@@ -1,7 +1,6 @@
 import os
 import stat
 import subprocess
-import re
 import logging
 
 from .posix import PosixProcessProvider
@@ -142,7 +141,10 @@ class ResolveConfSplitDNSProvider(SplitDNSProvider):
 class ResolvedSplitDNSProvider(SplitDNSProvider):
     @staticmethod
     def inuse():
-        return re.match("^/run/systemd/resolve/.*", os.readlink('/etc/resolv.conf')) != None
+        try:
+            return os.readlink('/etc/resolv.conf').startswith('/run/systemd/resolve/')
+        except OSError:
+            return False  # not in use if it's not a symlink
 
     def __init__(self):
         self.resolvectl = get_executable('/usr/bin/resolvectl')
