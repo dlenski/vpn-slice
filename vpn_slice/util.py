@@ -3,11 +3,17 @@ import os.path
 from shutil import which
 
 
-def get_executable(path):
-    path = which(os.path.basename(path)) or path
-    if not os.access(path, os.X_OK):
-        raise OSError('cannot execute {}'.format(path))
-    return path
+def get_executable(*paths, fallback_to_which=True):
+    bn = os.path.basename(paths[0])
+    for path in paths:
+        if os.access(path, os.X_OK):
+            return path
+    if fallback_to_which:
+        path = which(bn)
+        if path and os.access(path, os.X_OK):
+            return path
+    raise OSError('cannot find executable {} (tried {}{})'.format(
+        bn, ', '.join(paths), (', $PATH' if fallback_to_which else '')))
 
 
 class slurpy(dict):
