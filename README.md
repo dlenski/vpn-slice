@@ -12,12 +12,16 @@ Table of Contents
   * [Introduction](#introduction)
     * [Who this is for](#who-this-is-for)
     * [Requirements](#requirements)
+    * [Installation](#installation)
+      * [From PyPI](#from-pypi)
+      * [As an RPM](#as-an-rpm)
+      * [On MacOS](#on-macos)
     * [First steps](#first-steps)
     * [Usage](#usage)
     * [Diagnostics](#diagnostics)
   * [Inspiration and credits](#inspiration-and-credits)
   * [License](#license)
-    * [TODO](#todo)
+    * [TODO](#todo--help-wanted)
 
 ## Introduction
 
@@ -79,6 +83,10 @@ traffic as possible through those VPNs.
     [`route`](https://en.wikipedia.org/wiki/Route_(command))
     if [`procfs`](https://www.freebsd.org/cgi/man.cgi?query=procfs&sektion=5) is mounted
 
+## Installation
+
+### From PyPI
+
 You can install the latest build [from PyPI](https://pypi.org/project/vpn-slice)
 with `pip` (make sure you are using the Python 3.x version, usually invoked
 with `pip3`).
@@ -97,15 +105,19 @@ $ sudo pip3 install "https://github.com/dlenski/vpn-slice/archive/master.zip#egg
 
 (If your system doesn't support `dnspython` or `setproctitle`, for some reason, then omit those.)
 
+### As an RPM
+
 You can use the `bdist_rpm` target to package vpn-slice as an RPM, and thereby install it with your distribution's
 packaging system, allowing it to keep track of installed files.
-See [the documention](https://docs.python.org/3/distutils/builtdist.html#creating-rpm-packages) for important
+See [the documentation](https://docs.python.org/3/distutils/builtdist.html#creating-rpm-packages) for important
 details about the portability and reusability of RPM packages built in this way:
 
 ```sh
 $ python3 setup.py bdist_rpm --requires=python3-dns,python3-setproctitle
 $ sudo dnf install dist/vpn-slice-*.noarch.rpm
 ```
+
+### On macOS
 
 On macOS, you can also install from the [Homebrew](https://brew.sh) repository:
 
