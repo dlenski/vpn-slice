@@ -145,14 +145,14 @@ class TunnelPrepProvider:
         """
 
 class SplitDNSProvider:
-    def configure_domain_vpn_dns(self, domains, nameservers, tundev):
+    def configure_domain_vpn_dns(self, domains, nameservers):
         """Configure domain vpn dns.
 
         Base class behavior is to do nothing.
 
         """
 
-    def deconfigure_domain_vpn_dns(self, domains, nameservers, tundev):
+    def deconfigure_domain_vpn_dns(self, domains, nameservers):
         """Remove domain vpn dns.
 
         Base class behavior is to do nothing.

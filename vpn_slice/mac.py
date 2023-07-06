@@ -115,7 +115,7 @@ class BSDRouteProvider(RouteProvider):
 
 
 class MacSplitDNSProvider(SplitDNSProvider):
-    def configure_domain_vpn_dns(self, domains, nameservers, tundev):
+    def configure_domain_vpn_dns(self, domains, nameservers):
         if not os.path.exists('/etc/resolver'):
             os.makedirs('/etc/resolver')
         for domain in domains:
@@ -124,7 +124,7 @@ class MacSplitDNSProvider(SplitDNSProvider):
                 for nameserver in nameservers:
                     resolver_file.write("nameserver {}\n".format(nameserver))
 
-    def deconfigure_domain_vpn_dns(self, domains, nameservers, tundev):
+    def deconfigure_domain_vpn_dns(self, domains, nameservers):
         for domain in domains:
             resolver_file_name = "/etc/resolver/{0}".format(domain)
             if os.path.exists(resolver_file_name):
