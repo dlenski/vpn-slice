@@ -1,4 +1,5 @@
 from ipaddress import ip_address
+from itertools import chain
 from sys import stderr
 
 from dns.name import from_text, root
@@ -20,6 +21,36 @@ class DNSPythonProvider(DNSProvider):
             self.rectypes.append('A')
         if self.bind_addresses is None or any(a.version == 6 for a in self.bind_addresses):
             self.rectypes.append('AAAA')
+
+    def reverse_lookup_ip(self, ip, keep_going=True):
+        result = set()
+
+        for source in self.bind_addresses or [None]:
+            if source is None:
+                self.resolver.nameservers = self.dns_servers
+            else:
+                self.resolver.nameservers = [str(dns) for dns in self.dns_servers if dns.version == source.version]
+                if not self.resolver.nameservers:
+                    continue
+
+            if ip.version == 4:
+                arpa = '%d.%d.%d.%d.in-addr.arpa' % tuple(reversed(ip.packed))
+            else:
+                arpa = ''.join('%x.%x.' % ((x & 15), (x >> 4)) for x in reversed(ip.packed)) + 'ip6.arpa'
+
+            try:
+                print("Issuing query for hostname %r, rectype PTR, class IN, source %r, search %r, nameservers %r" % (
+                    arpa, source, self.resolver.search, self.resolver.nameservers), file=stderr)
+                a = self.resolver.query(arpa, 'PTR', 'IN', source=None if source is None else str(source))
+                print("Got results: %r" % list(a), file=stderr)
+            except (NXDOMAIN, NoAnswer, Timeout):
+                pass
+            else:
+                result.update(str(r.target).rstrip('.') for r in a)
+            if result and not keep_going:
+                return result
+
+        return result or None
 
     def lookup_host(self, hostname, keep_going=True):
         result = set()
