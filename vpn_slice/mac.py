@@ -142,11 +142,7 @@ class PfFirewallProvider(FirewallProvider):
     _PF_CONF_FILE = '/etc/pf.conf'
 
     def _reload_conf(self):
-        cmd = [self.pfctl, '-f', self._PF_CONF_FILE]
-        p = subprocess.Popen(cmd, universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        output, stderr = p.communicate()
-        if p.returncode != 0:
-            raise subprocess.CalledProcessError(p.returncode, cmd, output=output, stderr=stderr)
+        subprocess.check_call([self.pfctl, '-f', self._PF_CONF_FILE])
 
     def configure_firewall(self, device):
         # Enabled Packet Filter - increments a reference counter for processes that need packet filter enabled
@@ -175,19 +171,13 @@ class PfFirewallProvider(FirewallProvider):
         # reload config file
         self._reload_conf()
 
-        p = subprocess.Popen([self.pfctl, '-a', anchor, '-f', '-'],
-                             universal_newlines=True,
-                             stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE,
-                             stdin=subprocess.PIPE)
-
         rules = '''pass out on {0} all keep state
         block drop in on {0} all
         '''.format(device)
 
-        output, stderr = p.communicate(rules)
-        if p.returncode != 0:
-            raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
+        subprocess.check_output([self.pfctl, '-a', anchor, '-f', '-'],
+                                universal_newlines=True,
+                                input=rules)
 
     def deconfigure_firewall(self, device):
         # disable anchor
@@ -209,11 +199,7 @@ class PfFirewallProvider(FirewallProvider):
 
         # decrement pf enable reference counter
         for token in enable_tokens:
-            cl = [self.pfctl, '-X', token]
-            p = subprocess.Popen(cl, universal_newlines=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            output, stderr = p.communicate()
-            if p.returncode != 0:
-                raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
+            subprocess.check_call([self.pfctl, '-X', token])
 
         if not enable_tokens:
             print("WARNING: failed to get pf enable reference token, packet filter might not have shutdown correctly")
