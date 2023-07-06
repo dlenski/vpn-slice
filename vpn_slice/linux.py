@@ -111,7 +111,7 @@ class CheckTunDevProvider(TunnelPrepProvider):
             raise OSError("can't read and write /dev/net/tun")
 
 
-class ResolveConfSplitDNSProvider(SplitDNSProvider):
+class ResolvConfSplitDNSProvider(SplitDNSProvider):
     def __init__(self):
         self.resolvconf = get_executable('/usr/bin/resolvconf')
 

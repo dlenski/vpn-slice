@@ -31,7 +31,7 @@ def get_default_providers():
         DNSPythonProvider = None
 
     if platform.startswith('linux'):
-        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider, ResolveConfSplitDNSProvider, ResolvedSplitDNSProvider
+        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider, ResolvConfSplitDNSProvider, ResolvedSplitDNSProvider
         from .posix import DigProvider, PosixHostsFileProvider
         logging.debug('resolved in use: %s', ResolvedSplitDNSProvider.inuse())
         if not ResolvedSplitDNSProvider.inuse():
@@ -43,7 +43,7 @@ def get_default_providers():
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             prep = CheckTunDevProvider,
-            domain_vpn_dns = ResolvedSplitDNSProvider or ResolveConfSplitDNSProvider,
+            domain_vpn_dns = ResolvedSplitDNSProvider or ResolvConfSplitDNSProvider,
         )
     elif platform.startswith('darwin'):
         from distutils.version import LooseVersion

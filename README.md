@@ -72,8 +72,8 @@ traffic as possible through those VPNs.
   * Linux kernel 3.x+ with
     [`iproute2`](https://en.wikipedia.org/wiki/iproute2) and
     [`iptables`](https://en.wikipedia.org/wiki/iptables) utilities
-    (used for all routing setup)
-    Furthermore, [`resolveconf`](https://en.wikipedia.org/wiki/Resolvconf) or [`systemd-resolved`](https://systemd.network/systemd-resolved.service.html)
+    (used for all routing setup).
+    Furthermore, [`resolvconf`](https://en.wikipedia.org/wiki/Resolvconf) or [`systemd-resolved`](https://systemd.network/systemd-resolved.service.html)
     is needed for split DNS. SystemD's resolvconf is preferred over resolvconf, if both are present on a system.
   * macOS 10.x with BSD
     [`route`](https://en.wikipedia.org/wiki/Route_(command))
