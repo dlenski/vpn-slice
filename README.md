@@ -64,7 +64,7 @@ traffic as possible through those VPNs.
 
 ## Requirements
 
-* Python 3.3+
+* Python 3.5+
 * Either of the following:
   * [`dnspython`](https://pypi.org/project/dnspython) module (**preferred**, tested with v1.16.0)
   * [`dig`](https://en.wikipedia.org/wiki/Dig_(command)) command-line DNS lookup tool (tested with v9.9.5 and v9.10.3)
