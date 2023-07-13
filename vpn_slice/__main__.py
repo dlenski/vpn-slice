@@ -9,6 +9,7 @@ from random import choice, randint, shuffle
 from subprocess import CalledProcessError
 from sys import platform, stderr
 from time import sleep
+from typing import Sequence, Mapping
 
 try:
     from setproctitle import setproctitle
@@ -72,7 +73,7 @@ def get_default_providers():
         )
 
 
-def net_or_host_param(s):
+def net_or_host_param(s: str):
     if '=' in s:
         hosts = s.split('=')
         ip = hosts.pop()
@@ -90,7 +91,7 @@ def net_or_host_param(s):
             return s
 
 
-def names_for(host, domains, short=True, long=True):
+def names_for(host: str, domains: Sequence[str], short: bool=True, long: bool=True):
     if '.' in host: first, rest = host.split('.', 1)
     else: first, rest = host, None
     if isinstance(domains, str): domains = (domains,)

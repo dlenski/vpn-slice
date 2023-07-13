@@ -3,7 +3,7 @@ import os.path
 from shutil import which
 
 
-def get_executable(path):
+def get_executable(path: str):
     path = which(os.path.basename(path)) or path
     if not os.access(path, os.X_OK):
         raise OSError('cannot execute {}'.format(path))
