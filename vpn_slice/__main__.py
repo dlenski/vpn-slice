@@ -262,12 +262,26 @@ def do_post_connect(env, args):
             for ip, names in ns_names:
                 print("  %s = %s" % (ip, ', '.join(map(str, names))), file=stderr)
 
-    if args.hosts or args.prevent_idle_timeout:
+    if args.hosts or args.prevent_idle_timeout or args.kerberos_dc:
         providers.dns.configure(dns_servers=(env.dns + env.dns6), search_domains=args.domain, bind_addresses=env.myaddrs)
-    if args.hosts:
+
+    kdc_hosts = []
+    if args.kerberos_dc:
         if args.verbose:
-            print("Looking up %d hosts using VPN DNS servers..." % len(args.hosts), file=stderr)
-        for host in args.hosts:
+            print("Looking up Kerberos5 DC hosts for realm %r using VPN DNS servers..." % args.kerberos_dc, file=stderr)
+        try:
+            kdc_hosts = providers.dns.lookup_srv('_kerberos._tcp.%s' % args.kerberos_dc)
+        except Exception as e:
+            print("WARNING: Lookup for Kerberos5 DC hosts for realm %r on VPN DNS servers failed:\n\t%s" % (args.kerberos_dc, e), file=stderr)
+        else:
+            if args.verbose:
+                print("Got %d Kerberos5 DC hosts." % len(kdc_hosts), file=stderr)
+
+    hosts_to_lookup = list(chain(tagged(args.hosts, 'host'), tagged(kdc_hosts, 'kdc')))
+    if hosts_to_lookup:
+        if args.verbose:
+            print("Looking up %d hosts using VPN DNS servers..." % len(hosts_to_lookup), file=stderr)
+        for host, why in hosts_to_lookup:
             try:
                 ips = providers.dns.lookup_host(host)
             except Exception as e:
@@ -279,7 +293,9 @@ def do_post_connect(env, args):
                     if args.verbose:
                         print("  %s = %s" % (host, ', '.join(map(str, ips))), file=stderr)
                     ip_routes.update(ips)
-                    if args.host_names:
+                    if why == 'kdc':
+                        host_map.extend((ip, [host]) for ip in ips)
+                    elif args.host_names:
                         names = names_for(host, args.domain, args.short_names)
                         host_map.extend((ip, names) for ip in ips)
     for ip, aliases in args.aliases.items():
@@ -452,6 +468,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     g.add_argument('--no-ns-hosts', action='store_false', dest='ns_hosts', default=True, help='Do not add nameserver aliases to /etc/hosts (default is to name them dns0.tun0, etc.)')
     g.add_argument('--nbns', action='store_true', dest='nbns', help='Include NBNS (Windows/NetBIOS nameservers) as well as DNS nameservers')
     g.add_argument('--domains-vpn-dns', dest='vpn_domains', default=None, help="comma separated domains to query with vpn dns")
+    g.add_argument('--kerberos-dc', metavar='REALM', help='Lookup Kerberos5 domain controller (DC) hosts for the given realm, and add routes and /etc/hosts entries for them.')
     g = p.add_argument_group('Debugging options')
     g.add_argument('--self-test', action='store_true', help='Stop after verifying that environment variables and providers are configured properly.')
     g.add_argument('-v', '--verbose', default=0, action='count', help="Explain what %(prog)s is doing. Specify repeatedly to increase the level of detail.")
@@ -530,11 +547,11 @@ def main(args=None, environ=os.environ):
         # Fail if necessary providers are missing
         required = {'route', 'process'}
         # The hosts provider is required unless:
-        #   1) '--no-ns-hosts --no-host-names' specified, or
-        #   2) '--no-ns-hosts' specified, but neither hosts nor aliases specified
-        if not args.ns_hosts and not args.host_names:
+        #   1) '--no-ns-hosts --no-host-names' specified, '--kerberos-dc' unspecified or
+        #   2) '--no-ns-hosts' specified, and '--kerberos-dc' unspecified, and neither hosts nor aliases specified
+        if not args.ns_hosts and not args.host_names and not args.kerberos_dc:
             pass
-        elif not args.ns_hosts and not args.hosts and not args.aliases:
+        elif not args.ns_hosts and not args.kerberos_dc and not args.hosts and not args.aliases:
             pass
         else:
             required.add('hosts')

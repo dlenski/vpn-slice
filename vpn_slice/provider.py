@@ -116,6 +116,15 @@ class DNSProvider(metaclass=ABCMeta):
         any valid records.
         """
 
+    @abstractmethod
+    def lookup_srv(self, query):
+        """Query SRV records using configured servers.
+
+        The resulting hostnames will be returned in order of
+        (priority, weight), with the trailing '.' stripped from each
+        hostname. See https://en.wikipedia.org/wiki/SRV_record for the
+        interpretation of these results.
+        """
 
 class HostsProvider(metaclass=ABCMeta):
     @abstractmethod
