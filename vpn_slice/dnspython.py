@@ -37,7 +37,7 @@ class DNSPythonProvider(DNSProvider):
                     # print("Issuing query for hostname %r, rectype %r, source %r, search %r, nameservers %r" % (
                     #     hostname, rectype, source, self.resolver.search, self.resolver.nameservers), file=stderr)
                     a = self.resolver.query(hostname, rectype, source=None if source is None else str(source))
-                    print("Got results: %r" % list(a), file=stderr)
+                    # print("Got results: %r" % list(a), file=stderr)
                 except (NXDOMAIN, NoAnswer):
                     pass
                 except Timeout:
@@ -49,3 +49,24 @@ class DNSPythonProvider(DNSProvider):
                     return result
 
         return result or None
+
+    def lookup_srv(self, query):
+        result = set()
+
+        for source in self.bind_addresses or [None]:
+            if source is None:
+                self.resolver.nameservers = self.dns_servers
+            else:
+                self.resolver.nameservers = [str(dns) for dns in self.dns_servers if dns.version == source.version]
+                if not self.resolver.nameservers:
+                    continue
+
+            try:
+                a = self.resolver.query(query, 'SRV', source=None if source is None else str(source))
+                #print("Got results: %r" % list(a), file=stderr)
+            except (NXDOMAIN, NoAnswer, Timeout):
+                pass
+            else:
+                result.update((x.priority, x.weight, str(x.target).rstrip('.')) for x in a)
+
+        return [r[2] for r in sorted(result)]
