@@ -2,6 +2,7 @@ import fcntl
 import os
 import subprocess
 from ipaddress import ip_address
+from itertools import product
 from signal import SIGTERM
 
 from .provider import DNSProvider, HostsProvider, ProcessProvider
@@ -64,6 +65,30 @@ class DigProvider(DNSProvider):
                 return result
 
         return result or None
+
+    def lookup_srv(self, query):
+        dns_servers = self.dns_servers
+        bind_addresses = self.bind_addresses
+
+        if not bind_addresses:
+            all_cls = [self.base_cl + ['@{!s}'.format(dns) for dns in dns_servers] + [query, 'SRV']]
+        else:
+            all_cls = [self.base_cl + ['-b', str(bind)] +
+                       ['@{!s}'.format(n) for n in dns_servers if n.version == bind.version] +
+                       [query, 'SRV'] for bind in bind_addresses]
+
+        result = set()
+        for cl in all_cls:
+            p = subprocess.Popen(cl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            output, stderr = p.communicate()
+            if p.returncode != 0:
+                raise subprocess.CalledProcessError(p.returncode, cl, output=output, stderr=stderr)
+            for line in output.splitlines():
+                bits = line.split()
+                priority, weight, port, name = int(bits[0]), int(bits[1]), int(bits[2]), bits[3].rstrip('.')
+                result.add((priority, weight, name))
+
+        return [r[2] for r in sorted(result)]
 
 
 class HostsFileProvider(HostsProvider):
