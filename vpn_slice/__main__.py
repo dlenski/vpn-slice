@@ -132,11 +132,21 @@ def do_disconnect(env, args):
         if args.verbose:
             print("Removed %d hosts from /etc/hosts" % removed, file=stderr)
 
-    # delete explicit route to gateway
-    try:
-        providers.route.remove_route(env.gateway)
-    except CalledProcessError:
-        print("WARNING: could not delete route to VPN gateway (%s)" % env.gateway, file=stderr)
+    # delete all explicitly created routes:
+    #   1. Explicit route to gateway (won't get deleted automatically because
+    #      it's via an interface other than the one being disabled)
+    #   2. Explicit split-exclude routes (same)
+    #   3. Normal (split-)include routes (might already be deleted if the
+    #      interface is being disabled; platform-dependent)
+    for dest, desc in chain(tagged([env.gateway], "route to VPN gateway"),
+                            tagged(args.exc_subnets, "split-exclude route"),
+                            tagged(args.subnets, "route")):
+        try:
+            providers.route.remove_route(dest)
+        except CalledProcessError:
+            print("WARNING: could not delete %s (%s)" % (desc, dest), file=stderr)
+    else:
+        providers.route.flush_cache()
 
     # remove firewall rule blocking incoming traffic
     if 'firewall' in providers and not args.incoming:
@@ -622,7 +632,7 @@ def main(args=None, environ=os.environ):
     elif env.reason in (reasons.reconnect, reasons.attempt_reconnect):
         # FIXME: is there anything that reconnect or attempt_reconnect /should/ do
         # on a modern system (Linux) which automatically removes routes to
-        # a tunnel adapter that has been removed? I am not clear on whether
+        # a tunnel interface that has been removed? I am not clear on whether
         # any other behavior is potentially useful.
         #
         # See these issue comments for some relevant discussion:
