@@ -615,7 +615,7 @@ def main(args=None, environ=os.environ):
             print('  ' + '\n  '.join(map(str, args.exc_subnets)))
         if args.aliases:
             print('Complete set of host aliases to add /etc/hosts entries for:', file=stderr)
-            print('  ' + '\n  '.join(args.aliases))
+            print('  ' + '\n  '.join('%s -> %s' % (ip, ', '.join(a)) for (ip, a) in args.aliases.items()))
         if args.hosts:
             print('Complete set of host names to include in VPN routes after DNS lookup%s:' % (' (and add /etc/hosts entries for)' if args.host_names else ''), file=stderr)
             print('  ' + '\n  '.join(args.hosts))
