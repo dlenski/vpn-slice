@@ -123,6 +123,7 @@ class MacSplitDNSProvider(SplitDNSProvider):
             with open(resolver_file_name, "w") as resolver_file:
                 for nameserver in nameservers:
                     resolver_file.write("nameserver {}\n".format(nameserver))
+                resolver_file.write("search {}\n".format(domain))
 
     def deconfigure_domain_vpn_dns(self, domains, nameservers):
         for domain in domains:
