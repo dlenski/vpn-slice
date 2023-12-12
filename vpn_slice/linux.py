@@ -134,4 +134,4 @@ class ResolvedSplitDNSProvider(SplitDNSProvider):
 
     def configure_domain_vpn_dns(self, domains, nameservers, tundev):
         subprocess.check_call([self.resolvectl, 'domain', tundev] + domains)
-        subprocess.check_call([self.resolvectl, 'dns', tundev] + map(str, nameservers))
+        subprocess.check_call([self.resolvectl, 'dns', tundev] + list(map(str, nameservers)))
