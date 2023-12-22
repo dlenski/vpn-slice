@@ -89,6 +89,11 @@ def net_or_host_param(s):
         except ValueError:
             return s
 
+def file_path_param(path):
+    if isinstance(path, str) and os.path.exists(path):
+        return path
+    else:
+        raise ValueError("path not valid")
 
 def names_for(host, domains, short=True, long=True):
     if '.' in host: first, rest = host.split('.', 1)
@@ -103,6 +108,22 @@ def names_for(host, domains, short=True, long=True):
         if not rest: names.append(host)
         elif rest in domains: names.append(first)
     return names
+
+def read_routes_file(filename):
+    hosts = []
+    with open(filename) as f:
+        lines = [x.strip() for x in f.readlines()]
+        for line in lines:
+            # ignore empty lines
+            if not len(line.strip()):
+                continue
+            # ignore comment lines
+            if line.strip().startswith('#'):
+                continue
+            # ignore comments at the end of the line
+            host = line.split('#', 1)[0].strip()
+            hosts.append(host)
+    return hosts
 
 ########################################
 
@@ -462,6 +483,7 @@ def parse_args_and_env(args=None, environ=os.environ):
     p = argparse.ArgumentParser()
     p.add_argument('routes', nargs='*', type=net_or_host_param, help='List of VPN-internal hostnames, included subnets (e.g. 192.168.0.0/24), excluded subnets (e.g. %%8.0.0.0/8), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g = p.add_argument_group('Subprocess options')
+    p.add_argument('-f', '--routes-file', default=None, type=file_path_param, help='Path to List of VPN-internal hostnames, subnets (e.g. 192.168.0.0/24), or aliases (e.g. host1=192.168.1.2) to add to routing and /etc/hosts.')
     g.add_argument('-k', '--kill', default=[], action='append', help='File containing PID to kill before disconnect (may be specified multiple times)')
     g.add_argument('-K', '--prevent-idle-timeout', action='store_true', help='Prevent idle timeout by doing random DNS lookups (interval set by $IDLE_TIMEOUT, defaulting to 10 minutes)')
     g = p.add_argument_group('Informational options')
@@ -506,6 +528,14 @@ def parse_args_and_env(args=None, environ=os.environ):
     args.exc_subnets = []
     args.hosts = []
     args.aliases = {}
+
+    # read routes from a file
+    if args.routes_file:
+        args.routes.extend([
+            net_or_host_param(x)
+            for x in read_routes_file(args.routes_file)
+            ])
+
     for x in args.routes:
         if isinstance(x, str):
             args.hosts.append(x)
