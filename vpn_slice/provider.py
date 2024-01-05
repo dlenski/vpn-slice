@@ -88,6 +88,10 @@ class RouteProvider(metaclass=ABCMeta):
     def add_address(self, device, address):
         """Add an address to an interface."""
 
+    @abstractmethod
+    def remove_address(self, device, address=None):
+        """Removes an address from an interface. Removes all when address=None."""
+
 
 class FirewallProvider(metaclass=ABCMeta):
     @abstractmethod
@@ -167,3 +171,20 @@ class SplitDNSProvider:
         Base class behavior is to do nothing.
 
         """
+
+class NrptProvider:
+    @abstractmethod
+    def add_nrpt(self, namespace, servers):
+        """NRPT Rule addition.
+        Name Resolution Policy Table.
+        Adds a special mapping NRPT rule for a given DNS namespace
+        to be resolved by a specified list of DNS servers.
+        """
+
+    @abstractmethod
+    def remove_nrtp(self, namespace):
+        """Removes all mappings with the matching namespace."""
+
+    @abstractmethod
+    def remove_all_nrtp(self):
+        """Removes all NRPT rules."""
