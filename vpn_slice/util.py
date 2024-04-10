@@ -6,7 +6,7 @@ from shutil import which
 def get_executable(path):
     path = which(os.path.basename(path)) or path
     if not os.access(path, os.X_OK):
-        raise OSError('cannot execute {}'.format(path))
+        raise OSError(f'cannot execute {path}')
     return path
 
 

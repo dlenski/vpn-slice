@@ -20,7 +20,7 @@ class DigProvider(DNSProvider):
         search_domains = self.search_domains
 
         if not bind_addresses:
-            some_cls = [self.base_cl + ['@{!s}'.format(dns) for dns in dns_servers]]
+            some_cls = [self.base_cl + [f'@{dns!s}' for dns in dns_servers]]
             field_requests = [hostname, 'A', hostname, 'AAAA']
         else:
             some_cls = []
@@ -32,7 +32,7 @@ class DigProvider(DNSProvider):
                 field_requests.extend([hostname, ('AAAA' if bind.version == 6 else 'A')])
 
                 # We can only do a lookup via DNS-over-IPv[X] if we have an IPv[X] address to bind to.
-                matching_dns = ['@{!s}'.format(dns) for dns in dns_servers if dns.version == bind.version]
+                matching_dns = [f'@{dns!s}' for dns in dns_servers if dns.version == bind.version]
                 if matching_dns:
                     some_cls.append(self.base_cl + ['-b', str(bind)] + matching_dns)
 
@@ -43,7 +43,7 @@ class DigProvider(DNSProvider):
         all_cls = []
         if search_domains:
             for cl in some_cls:
-                all_cls.extend(cl + ['+domain={!s}'.format(sd)] + field_requests for sd in search_domains)
+                all_cls.extend(cl + [f'+domain={sd!s}'] + field_requests for sd in search_domains)
         else:
             for cl in some_cls:
                 all_cls.extend([cl + field_requests])
@@ -71,10 +71,10 @@ class DigProvider(DNSProvider):
         bind_addresses = self.bind_addresses
 
         if not bind_addresses:
-            all_cls = [self.base_cl + ['@{!s}'.format(dns) for dns in dns_servers] + [query, 'SRV']]
+            all_cls = [self.base_cl + [f'@{dns!s}' for dns in dns_servers] + [query, 'SRV']]
         else:
             all_cls = [self.base_cl + ['-b', str(bind)] +
-                       ['@{!s}'.format(n) for n in dns_servers if n.version == bind.version] +
+                       [f'@{n!s}' for n in dns_servers if n.version == bind.version] +
                        [query, 'SRV'] for bind in bind_addresses]
 
         result = set()
@@ -95,18 +95,18 @@ class HostsFileProvider(HostsProvider):
     def __init__(self, path):
         self.path = path
         if not os.access(path, os.R_OK | os.W_OK):
-            raise OSError('Cannot read/write {}'.format(path))
+            raise OSError(f'Cannot read/write {path}')
 
     def write_hosts(self, host_map, name):
-        tag = 'vpn-slice-{} AUTOCREATED'.format(name)
+        tag = f'vpn-slice-{name} AUTOCREATED'
         with open(self.path, 'r+') as hostf:
             fcntl.flock(hostf, fcntl.LOCK_EX)  # POSIX only, obviously
             lines = hostf.readlines()
-            keeplines = [l for l in lines if not l.endswith('# %s\n' % tag)]
+            keeplines = [l for l in lines if not l.endswith(f'# {tag}\n')]
             hostf.seek(0, 0)
             hostf.writelines(keeplines)
             for ip, names in host_map:
-                print('%s %s\t\t# %s' % (ip, ' '.join(names), tag), file=hostf)
+                print(f"{ip} {' '.join(names)}\t\t# {tag}", file=hostf)
             hostf.truncate()
         return len(host_map) or len(lines) - len(keeplines)
 

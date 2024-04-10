@@ -119,14 +119,14 @@ class MacSplitDNSProvider(SplitDNSProvider):
         if not os.path.exists('/etc/resolver'):
             os.makedirs('/etc/resolver')
         for domain in domains:
-            resolver_file_name = "/etc/resolver/{0}".format(domain)
+            resolver_file_name = f"/etc/resolver/{domain}"
             with open(resolver_file_name, "w") as resolver_file:
                 for nameserver in nameservers:
-                    resolver_file.write("nameserver {}\n".format(nameserver))
+                    resolver_file.write(f"nameserver {nameserver}\n")
 
     def deconfigure_domain_vpn_dns(self, domains, nameservers):
         for domain in domains:
-            resolver_file_name = "/etc/resolver/{0}".format(domain)
+            resolver_file_name = f"/etc/resolver/{domain}"
             if os.path.exists(resolver_file_name):
                 os.remove(resolver_file_name)
         if not len(os.listdir('/etc/resolver')):
@@ -167,10 +167,10 @@ class PfFirewallProvider(FirewallProvider):
         if not enable_token:
             print("WARNING: failed to get pf enable reference token, packet filter might not shutdown correctly")
 
-        anchor = '{}/{}'.format(self._PF_ANCHOR, device)
+        anchor = f'{self._PF_ANCHOR}/{device}'
         # add anchor to generate rules with
         with open(self._PF_CONF_FILE, 'a') as file:
-            file.write('anchor "{}" # vpn-slice-{} AUTOCREATED {}\n'.format(anchor, device, enable_token))
+            file.write(f'anchor "{anchor}" # vpn-slice-{device} AUTOCREATED {enable_token}\n')
 
         # reload config file
         self._reload_conf()
@@ -191,7 +191,7 @@ class PfFirewallProvider(FirewallProvider):
 
     def deconfigure_firewall(self, device):
         # disable anchor
-        anchor = '{}/{}'.format(self._PF_ANCHOR, device)
+        anchor = f'{self._PF_ANCHOR}/{device}'
         subprocess.check_call([self.pfctl, '-a', anchor, '-F', 'all'])
 
         with open(self._PF_CONF_FILE, 'r') as file:

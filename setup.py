@@ -31,7 +31,7 @@ setup(
         "setproctitle": ["setproctitle"],
         "dnspython": ["dnspython"],
     },
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     license='GPL v3 or later',
     url="https://github.com/dlenski/vpn-slice",
     packages=["vpn_slice"],

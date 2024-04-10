@@ -10,7 +10,7 @@ from .util import get_executable
 class ProcfsProvider(PosixProcessProvider):
     def pid2exe(self, pid):
         try:
-            return os.readlink('/proc/%d/exe' % pid)
+            return os.readlink(f'/proc/{pid}/exe')
         except OSError:
             return None
 
@@ -18,7 +18,7 @@ class ProcfsProvider(PosixProcessProvider):
         if pid is None:
             return os.getppid()
         try:
-            return int(next(open('/proc/%d/stat' % pid)).split()[3])
+            return int(next(open(f'/proc/{pid}/stat')).split()[3])
         except (OSError, ValueError):
             return None
 
