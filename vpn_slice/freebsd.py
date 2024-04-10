@@ -6,7 +6,7 @@ from .posix import PosixProcessProvider
 class ProcfsProvider(PosixProcessProvider):
     def pid2exe(self, pid):
         try:
-            return os.readlink('/proc/%d/file' % pid)
+            return os.readlink(f'/proc/{pid}/file')
         except OSError:
             return None
 
@@ -14,6 +14,6 @@ class ProcfsProvider(PosixProcessProvider):
         if pid is None:
             return os.getppid()
         try:
-            return int(next(open('/proc/%d/status' % pid)).split()[3])
+            return int(next(open(f'/proc/{pid}/status')).split()[3])
         except (OSError, ValueError):
             return None
