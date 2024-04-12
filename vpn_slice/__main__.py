@@ -455,6 +455,14 @@ def parse_env(environ=os.environ):
             print("WARNING: IPv6 split network (CISCO_IPV6_SPLIT_%s_%d_{ADDR,MASKLEN}) %s/%d has host bits set, replacing with %s" % (pfx, n, ad, nml, net), file=stderr)
         env['split' + pfx.lower()].append(net)
 
+    # IPv6 requires a minimum MTU of 1280.
+    # If the link is configured with a too-small MTU, it appears that any-and-all IPv6-related
+    # configuration, including setting addresses and routes, will immediately fail on Linux, where
+    # iproute(8) gives very cryptic errors like "RTNETLINK answers: Invalid argument error",
+    # preventing vpn-slice from completing a working setup even for IPv4.
+    if env.mtu < 1280 and env.myaddr6:
+        raise RuntimeError(f"MTU of {env.mtu} is too small for IPv6 (minimum 1280). Invoke OpenConnect with --disable-ipv6 to configure for IPv4 only.")
+
     return env
 
 # Parse command-line arguments and environment
