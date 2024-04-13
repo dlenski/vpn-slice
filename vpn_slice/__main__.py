@@ -541,8 +541,10 @@ def finalize_args_and_env(args, env):
 def main(args=None, environ=os.environ):
     global providers
 
+    self_test = False
     try:
         p, args, env = parse_args_and_env(args, environ)
+        self_test = args.self_test
 
         # Set platform-specific providers
         providers = slurpy()
@@ -578,14 +580,14 @@ def main(args=None, environ=os.environ):
         finalize_args_and_env(args, env)
 
     except Exception as e:
-        if args.self_test:
+        if self_test:
             print('******************************************************************************************', file=stderr)
             print('*** Self-test did not pass. Double-check that you are running as root (e.g. with sudo) ***', file=stderr)
             print('******************************************************************************************', file=stderr)
         raise SystemExit(*e.args)
 
     else:
-        if args.self_test:
+        if self_test:
             print('***************************************************************************', file=stderr)
             print('*** Self-test passed. Try using vpn-slice with openconnect or vpnc now. ***', file=stderr)
             print('***************************************************************************', file=stderr)
