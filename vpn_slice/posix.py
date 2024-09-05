@@ -99,14 +99,13 @@ class HostsFileProvider(HostsProvider):
 
     def write_hosts(self, host_map, name):
         tag = f'vpn-slice-{name} AUTOCREATED'
-        with open(self.path, 'r+') as hostf:
+        with open(self.path, 'r+b') as hostf:
             fcntl.flock(hostf, fcntl.LOCK_EX)  # POSIX only, obviously
             lines = hostf.readlines()
-            keeplines = [l for l in lines if not l.endswith(f'# {tag}\n')]
+            keeplines = [l for l in lines if not l.endswith(f'# {tag}\n'.encode())]
             hostf.seek(0, 0)
             hostf.writelines(keeplines)
-            for ip, names in host_map:
-                print(f"{ip} {' '.join(names)}\t\t# {tag}", file=hostf)
+            hostf.writelines(f"{ip} {' '.join(names)}\t\t# {tag}\n".encode() for ip, names in host_map)
             hostf.truncate()
         return len(host_map) or len(lines) - len(keeplines)
 

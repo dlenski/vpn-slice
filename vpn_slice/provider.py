@@ -129,13 +129,19 @@ class DNSProvider(metaclass=ABCMeta):
 class HostsProvider(metaclass=ABCMeta):
     @abstractmethod
     def write_hosts(self, host_map, name):
-        """Write information to the hosts file.
+        """Update local overrides for hostname-to-IP address mapping.
 
-        Lines include a tag so we can identify which lines to remove.
-        The tag is derived from the name.
+        Each local override added by this instance of vpn-slice should include a tag
+        a tag derived from the 'name' parameter, so that we can later identify those
+        owned by this instance in order to remove/replace them, while leaving others
+        untouched.
 
-        host_map maps IP addresses to host names, like the hosts file expects.
+        'host_map' should be a list of (IP address, lists of hostnames) tuples, e.g.
 
+            from typing import List, Tuple, Union
+            from ipaddress import ip_address
+            def write_hosts(self, host_map: List[Tuple[Union[ip_address, str], List[str]]], name: str):
+                ...
         """
 
 class TunnelPrepProvider:

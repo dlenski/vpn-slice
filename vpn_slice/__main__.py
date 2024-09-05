@@ -128,7 +128,7 @@ def do_disconnect(env, args):
                     print(f"Killed pid {pid} from {pidfile}", file=stderr)
 
     if 'hosts' in providers:
-        removed = providers.hosts.write_hosts({}, args.name)
+        removed = providers.hosts.write_hosts((), args.name)
         if args.verbose:
             print(f"Removed {removed} hosts from /etc/hosts", file=stderr)
 
