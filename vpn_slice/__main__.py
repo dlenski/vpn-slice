@@ -311,6 +311,11 @@ def do_post_connect(env, args):
     for ip, aliases in args.aliases.items():
         host_map.append((ip, aliases))
 
+    # convert any non-ASCII hostnames to internationalized hostnames
+    # (FIXME: is this really a sensible thing to do? Does anything besides
+    # web browsers actually understand these? OpenSSH certainly doesn't.)
+    host_map = [(ip, [providers.dns.encode_intl(n) for n in names]) for (ip, names) in host_map]
+
     # add them to /etc/hosts
     if host_map:
         providers.hosts.write_hosts(host_map, args.name)

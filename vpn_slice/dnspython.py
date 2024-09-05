@@ -70,3 +70,6 @@ class DNSPythonProvider(DNSProvider):
                 result.update((x.priority, x.weight, str(x.target).rstrip('.')) for x in a)
 
         return [r[2] for r in sorted(result)]
+    
+    def encode_intl(self, name):
+        return from_text(name).to_text(True)

@@ -126,6 +126,15 @@ class DNSProvider(metaclass=ABCMeta):
         interpretation of these results.
         """
 
+    def encode_intl(self, hostname):
+        """Convert a potentially non-ASCII hostname to its
+        internationalized representation, for example
+        (following IDNA2003):
+        www.foobár.com -> www.xn--foobr-0qa.com"""
+        if hostname.isascii():
+            return hostname
+        raise NotImplementedError()
+
 class HostsProvider(metaclass=ABCMeta):
     @abstractmethod
     def write_hosts(self, host_map, name):
