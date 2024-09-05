@@ -43,9 +43,8 @@ def get_default_providers():
     elif platform.startswith('darwin'):
         from platform import release
 
-        from .dnspython import DNSPythonProvider
         from .mac import BSDRouteProvider, MacSplitDNSProvider, PfFirewallProvider, PsProvider
-        from .posix import PosixHostsFileProvider
+        from .posix import DigProvider, PosixHostsFileProvider
         parsed_release = tuple(int(d) if d.isdigit() else 0 for d in release().split("."))
         return dict(
             process=PsProvider,
@@ -58,10 +57,9 @@ def get_default_providers():
             firewall = PfFirewallProvider if parsed_release >= (10, 0) else None,
         )
     elif platform.startswith('freebsd'):
-        from .dnspython import DNSPythonProvider
         from .freebsd import ProcfsProvider
         from .mac import BSDRouteProvider
-        from .posix import PosixHostsFileProvider
+        from .posix import DigProvider, PosixHostsFileProvider
         return dict(
             process = ProcfsProvider,
             route = BSDRouteProvider,
