@@ -10,11 +10,6 @@ from subprocess import CalledProcessError
 from sys import platform, stderr
 from time import sleep
 
-try:
-    from setproctitle import setproctitle
-except ImportError:
-    def setproctitle(title):
-        pass
 
 def tagged(iter, tag):
     return zip_longest(iter, (), fillvalue=tag)
@@ -327,6 +322,20 @@ def do_post_connect(env, args):
     if args.prevent_idle_timeout:
         dns = env.dns + env.dns6
         idle_timeout = env.idle_timeout
+
+        # Intentionally doing a late import of setproctitle, after having
+        # already os.fork()'ed the original process, to make this work on
+        # MacOS/Darwin. See
+        # https://github.com/dvarrazzo/py-setproctitle/issues/113#issuecomment-1409113681
+        # for the workaround, and
+        # https://github.com/dlenski/vpn-slice/issues/159 for the investigation
+        # of this issue on vpn-slice specifically.
+        try:
+            from setproctitle import setproctitle
+        except ImportError:
+            def setproctitle(title):
+                pass
+
         setproctitle(f'vpn-slice --prevent-idle-timeout --name {args.name}')
         if args.verbose:
             print(f"Continuing in background as PID {providers.process.pid()}, attempting to prevent idle timeout every {idle_timeout} seconds.")
