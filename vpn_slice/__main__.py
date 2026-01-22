@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import subprocess
 from enum import Enum
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Interface, IPv6Network, ip_address, ip_network
 from itertools import chain, zip_longest
@@ -242,7 +243,10 @@ def do_connect(env, args):
     # Use vpn dns for provided domains
     if args.vpn_domains is not None:
         if 'domain_vpn_dns' not in providers:
-            print("WARNING: no split dns provider available; can't split dns", file=stderr)
+            print("WARNING: no split dns provider available; trying resolvectl...", file=stderr)
+            print(subprocess.run(['resolvectl', 'dns', 'tun0', *map(str, env.dns)]), file=stderr)
+            for domain in args.vpn_domains:
+                print(subprocess.run(['resolvectl', 'domain', 'tun0', domain]), file=stderr)
         else:
             providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns)
 
