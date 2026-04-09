@@ -99,6 +99,25 @@ class IptablesProvider(FirewallProvider):
         self._iptables('-D', 'INPUT', '-i', device, '-m', 'state', '--state', 'RELATED,ESTABLISHED', '-j', 'ACCEPT')
 
 
+class NftablesProvider(FirewallProvider):
+    def __init__(self):
+        self.nft = get_executable('/sbin/nft')
+
+    def _nft(self, *args):
+        cl = [self.nft]
+        cl.extend(args)
+        subprocess.check_call(cl)
+
+    def configure_firewall(self, device):
+        self._nft('add', 'table', 'inet', 'vpn-slice')
+        self._nft('add', 'chain', 'inet', 'vpn-slice', 'input', '{ type filter hook input priority filter; policy accept; }')
+        self._nft('add', 'rule', 'inet', 'vpn-slice', 'input', 'iifname', device, 'ct state', '{ established, related }', 'counter', 'accept')
+        self._nft('add', 'rule', 'inet', 'vpn-slice', 'input', 'iifname', device, 'counter', 'drop')
+
+    def deconfigure_firewall(self, device):
+        self._nft('delete', 'table', 'inet', 'vpn-slice')
+
+
 class CheckTunDevProvider(TunnelPrepProvider):
     def create_tunnel(self):
         node = '/dev/net/tun'

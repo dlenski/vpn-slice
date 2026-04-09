@@ -25,12 +25,13 @@ def get_default_providers():
         DNSPythonProvider = None
 
     if platform.startswith('linux'):
-        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider
+        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, NftablesProvider, ProcfsProvider
         from .posix import DigProvider, PosixHostsFileProvider
+        nft_exists = os.path.exists('/sbin/nft')
         return dict(
             process = ProcfsProvider,
             route = Iproute2Provider,
-            firewall = IptablesProvider,
+            firewall = NftablesProvider if nft_exists else IptablesProvider,
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             prep = CheckTunDevProvider,
