@@ -21,7 +21,7 @@ Table of Contents
     * [Diagnostics](#diagnostics)
   * [Inspiration and credits](#inspiration-and-credits)
   * [License](#license)
-    * [TODO](#todo--help-wanted)
+  * [TODO](#todo--help-wanted)
 
 ## Introduction
 
@@ -229,7 +229,7 @@ Running with `--verbose` makes it explain what it is doing, while running with
 
 GPLv3 or later.
 
-## TODO / Help Wanted
+# TODO / Help Wanted
 
 * Better error-explaining
 * Fix timing issues
