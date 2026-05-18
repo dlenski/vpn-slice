@@ -25,7 +25,7 @@ def get_default_providers():
         DNSPythonProvider = None
 
     if platform.startswith('linux'):
-        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider
+        from .linux import CheckTunDevProvider, Iproute2Provider, IptablesProvider, ProcfsProvider, LinuxSplitDNSProvider
         from .posix import DigProvider, PosixHostsFileProvider
         return dict(
             process = ProcfsProvider,
@@ -34,6 +34,7 @@ def get_default_providers():
             dns = DNSPythonProvider or DigProvider,
             hosts = PosixHostsFileProvider,
             prep = CheckTunDevProvider,
+            domain_vpn_dns = LinuxSplitDNSProvider,
         )
     elif platform.startswith('darwin'):
         from platform import release
@@ -150,7 +151,7 @@ def do_disconnect(env, args):
 
     if args.vpn_domains is not None:
         try:
-            providers.domain_vpn_dns.deconfigure_domain_vpn_dns(args.vpn_domains, env.dns)
+            providers.domain_vpn_dns.deconfigure_domain_vpn_dns(args.vpn_domains, env.dns, env.tundev)
         except OSError:
             print("WARNING: failed to deconfigure domains vpn dns", file=stderr)
 
@@ -244,7 +245,11 @@ def do_connect(env, args):
         if 'domain_vpn_dns' not in providers:
             print("WARNING: no split dns provider available; can't split dns", file=stderr)
         else:
-            providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns)
+            try:
+                providers.domain_vpn_dns.configure_domain_vpn_dns(args.vpn_domains, env.dns, env.tundev)
+                print(f"Configured split DNS for domains {' '.join(args.vpn_domains)} to use VPN DNS servers.", file=stderr)
+            except OSError as e:
+                print(f"WARNING: Failed to configure split DNS: {e}", file=stderr)
 
 
 def do_post_connect(env, args):
