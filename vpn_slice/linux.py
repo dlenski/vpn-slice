@@ -59,7 +59,8 @@ class Iproute2Provider(RouteProvider):
         self._iproute('route', 'del', destination)
 
     def get_route(self, destination):
-        r = self._iproute('route', 'get', destination)
+        dest = str(destination).split('/', 1)[0]
+        r = self._iproute('route', 'get', dest)
         # Ignore localhost or incomplete routes
         if r.get('dev') == 'lo':
             del r['dev']
