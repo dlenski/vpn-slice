@@ -55,6 +55,20 @@ class Iproute2Provider(RouteProvider):
     def replace_route(self, destination, *, via=None, dev=None, src=None, mtu=None):
         self._iproute('route', 'replace', destination, via=via, dev=dev, src=src, mtu=mtu)
 
+    def replace_routes(self, routes):
+        # one `ip -batch` process instead of one process per route
+        lines = []
+        for dest, kw in routes:
+            words = ['route', 'replace', str(dest)]
+            for k, v in kw.items():
+                if v is not None:
+                    words.extend((k, str(v)))
+            lines.append(' '.join(words))
+        if not lines:
+            return
+        subprocess.run([self.iproute, '-batch', '-'], input='\n'.join(lines) + '\n',
+                       universal_newlines=True, check=True)
+
     def remove_route(self, destination):
         self._iproute('route', 'del', destination)
 

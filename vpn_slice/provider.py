@@ -46,6 +46,14 @@ class RouteProvider(metaclass=ABCMeta):
 
         """
 
+    def replace_routes(self, routes):
+        """Replace many routes; `routes` is a list of (destination, kwargs).
+
+        Default is one call per route; providers may batch.
+        """
+        for dest, kw in routes:
+            self.replace_route(dest, **kw)
+
     @abstractmethod
     def remove_route(self, destination):
         """Remove a route to a destination."""

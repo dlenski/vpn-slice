@@ -220,24 +220,24 @@ def do_connect(env, args):
 
     # set up routes to the DNS and Windows name servers, subnets, and local aliases
     ns = env.dns + env.dns6 + (env.nbns if args.nbns else [])
+    new_routes = []
     for dest, tag in chain(tagged(ns, "nameserver"), tagged(args.subnets, "subnet"), tagged(args.aliases, "alias")):
         if args.verbose > 1:
             print(f"Adding route to {tag} {dest} through {env.tundev}.", file=stderr)
-        providers.route.replace_route(dest, dev=env.tundev)
-    else:
-        providers.route.flush_cache()
-        if args.verbose:
-            print(f"Added routes for {len(ns)} nameservers, {len(args.subnets)} subnets, {len(args.aliases)} aliases.", file=stderr)
+        new_routes.append((dest, {'dev': env.tundev}))
+    providers.route.replace_routes(new_routes)
+    providers.route.flush_cache()
+    if args.verbose:
+        print(f"Added routes for {len(ns)} nameservers, {len(args.subnets)} subnets, {len(args.aliases)} aliases.", file=stderr)
 
     # restore routes to excluded subnets
-    for dest, exc_route in exc_subnets:
-        providers.route.replace_route(dest, **exc_route)
-        if args.verbose > 1:
+    if args.verbose > 1:
+        for dest, exc_route in exc_subnets:
             print("Restoring split-exclude route to %s (%s)" % (dest, ', '.join('%s %s' % kv for kv in exc_route.items())), file=stderr)
-    else:
-        providers.route.flush_cache()
-        if args.verbose:
-            print(f"Restored routes for {len(exc_subnets)} excluded subnets.", file=stderr)
+    providers.route.replace_routes(exc_subnets)
+    providers.route.flush_cache()
+    if args.verbose:
+        print(f"Restored routes for {len(exc_subnets)} excluded subnets.", file=stderr)
 
     # Use vpn dns for provided domains
     if args.vpn_domains is not None:
@@ -309,14 +309,13 @@ def do_post_connect(env, args):
             print(f"Added hostnames and aliases for {len(host_map)} addresses to /etc/hosts.", file=stderr)
 
     # add routes to hosts
-    for ip in ip_routes:
-        if args.verbose > 1:
+    if args.verbose > 1:
+        for ip in ip_routes:
             print(f"Adding route to {ip} (for named hosts) through {env.tundev}.", file=stderr)
-        providers.route.replace_route(ip, dev=env.tundev)
-    else:
-        providers.route.flush_cache()
-        if args.verbose:
-            print(f"Added {len(ip_routes)} routes for named hosts.", file=stderr)
+    providers.route.replace_routes([(ip, {'dev': env.tundev}) for ip in ip_routes])
+    providers.route.flush_cache()
+    if args.verbose:
+        print(f"Added {len(ip_routes)} routes for named hosts.", file=stderr)
 
     # run DNS queries in background to prevent idle timeout
     if args.prevent_idle_timeout:
