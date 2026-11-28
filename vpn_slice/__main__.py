@@ -309,10 +309,12 @@ def do_post_connect(env, args):
             print(f"Added hostnames and aliases for {len(host_map)} addresses to /etc/hosts.", file=stderr)
 
     # add routes to hosts
-    if args.verbose > 1:
-        for ip in ip_routes:
+    new_routes = []
+    for ip in ip_routes:
+        if args.verbose > 1:
             print(f"Adding route to {ip} (for named hosts) through {env.tundev}.", file=stderr)
-    providers.route.replace_routes([(ip, {'dev': env.tundev}) for ip in ip_routes])
+        new_routes.append((ip, {'dev': env.tundev}))
+    providers.route.replace_routes(new_routes)
     providers.route.flush_cache()
     if args.verbose:
         print(f"Added {len(ip_routes)} routes for named hosts.", file=stderr)
